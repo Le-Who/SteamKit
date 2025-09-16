@@ -41,7 +41,7 @@ namespace SteamTradeConfirmer.Services
                 manager.Subscribe<SteamClient.DisconnectedCallback>(callback => OnDisconnected(callback, account));
                 manager.Subscribe<SteamUser.LoggedOnCallback>(callback => OnLoggedOn(callback, account));
                 manager.Subscribe<SteamUser.LoggedOffCallback>(callback => OnLoggedOff(callback, account));
-                manager.Subscribe<SteamUser.UpdateMachineAuthCallback>(callback => OnMachineAuth(callback, account));
+                // Machine Auth пока отключен - может быть добавлен позже при необходимости
 
                 LoggingService.Instance.LogInfo("События подписаны, запускаем обработку колбэков", account.Username);
 
@@ -197,36 +197,6 @@ namespace SteamTradeConfirmer.Services
             account.IsAuthenticated = false;
         }
 
-        private void OnMachineAuth(SteamUser.UpdateMachineAuthCallback callback, SteamAccount account)
-        {
-            try
-            {
-                LoggingService.Instance.LogInfo("Получен запрос Machine Auth", account.Username);
-                
-                // Для упрощения, мы не сохраняем machine auth данные
-                // В реальном приложении здесь нужно сохранить данные в .maFile
-                
-                var steamUser = _steamUsers[account];
-                steamUser.SendMachineAuthResponse(new SteamUser.MachineAuthDetails
-                {
-                    JobID = callback.JobID,
-                    FileName = callback.FileName,
-                    BytesWritten = callback.BytesToWrite,
-                    FileSize = callback.BytesToWrite,
-                    Offset = callback.Offset,
-                    Result = EResult.OK,
-                    LastError = 0,
-                    OneTimePassword = callback.OneTimePassword,
-                    SentryFileHash = callback.SentryFileHash,
-                });
-                
-                LoggingService.Instance.LogInfo("Machine Auth ответ отправлен", account.Username);
-            }
-            catch (Exception ex)
-            {
-                LoggingService.Instance.LogError($"Ошибка Machine Auth: {ex.Message}", account.Username, ex);
-            }
-        }
 
         private void RunCallbackLoop(CallbackManager manager, SteamAccount account)
         {
