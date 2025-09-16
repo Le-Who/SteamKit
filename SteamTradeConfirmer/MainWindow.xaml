@@ -109,6 +109,5 @@
 
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
-        <local:StringToVisibilityConverter x:Key="StringToVisibilityConverter"/>
     </Window.Resources>
 </Window>

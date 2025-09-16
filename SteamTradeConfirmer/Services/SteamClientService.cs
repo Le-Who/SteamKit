@@ -101,7 +101,7 @@ namespace SteamTradeConfirmer.Services
             {
                 account.Status = "Подключен";
                 account.IsAuthenticated = true;
-                account.DisplayName = callback.PersonaName ?? account.Username;
+                account.DisplayName = account.Username; // PersonaName будет получен позже через SteamFriends
                 AccountAuthenticated?.Invoke(this, account);
             }
             else
