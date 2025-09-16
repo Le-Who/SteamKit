@@ -38,7 +38,9 @@ namespace SteamTradeConfirmer
             // Загружаем сохраненные аккаунты
             LoadAccounts();
 
-            UpdateStatus("Готов к работе");
+            // Показываем информацию о логах при запуске
+            var logPath = LoggingService.Instance.GetLogFilePath();
+            UpdateStatus($"Готов к работе. Логи: {Path.GetFileName(logPath)}");
         }
 
         private async void LoadAccounts()
@@ -214,10 +216,28 @@ namespace SteamTradeConfirmer
             }
         }
 
-        private void LogsButton_Click(object sender, RoutedEventArgs e)
+        private void OpenLogsButton_Click(object sender, RoutedEventArgs e)
         {
-            var dialog = new LogViewerDialog();
-            dialog.ShowDialog();
+            try
+            {
+                var logPath = LoggingService.Instance.GetLogFilePath();
+                var logDir = Path.GetDirectoryName(logPath);
+                
+                if (Directory.Exists(logDir))
+                {
+                    // Открываем папку с логами в проводнике Windows
+                    System.Diagnostics.Process.Start("explorer.exe", logDir);
+                    UpdateStatus($"Открыта папка с логами: {logDir}");
+                }
+                else
+                {
+                    UpdateStatus("Папка с логами не найдена");
+                }
+            }
+            catch (Exception ex)
+            {
+                UpdateStatus($"Ошибка открытия папки логов: {ex.Message}");
+            }
         }
 
         private void UpdateStatus(string message)

@@ -61,6 +61,9 @@ namespace SteamTradeConfirmer.Services
             // Выводим в консоль для отладки
             Console.WriteLine($"[{logEntry.Timestamp:HH:mm:ss.fff}] [{level}] {(accountName != null ? $"[{accountName}] " : "")}{message}");
             
+            // Автоматически сохраняем в файл
+            SaveLogToFile(logEntry);
+            
             LogAdded?.Invoke(this, logEntry);
         }
 
@@ -80,6 +83,25 @@ namespace SteamTradeConfirmer.Services
             }
         }
 
+        private void SaveLogToFile(LogEntry logEntry)
+        {
+            try
+            {
+                var logDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "SteamTradeConfirmer", "Logs");
+                Directory.CreateDirectory(logDir);
+                
+                var logFile = Path.Combine(logDir, $"steam_trade_confirmer_{DateTime.Now:yyyyMMdd}.log");
+                var logLine = $"[{logEntry.Timestamp:yyyy-MM-dd HH:mm:ss.fff}] [{logEntry.Level}] {(logEntry.AccountName != null ? $"[{logEntry.AccountName}] " : "")}{logEntry.Message}";
+                
+                File.AppendAllText(logFile, logLine + Environment.NewLine, Encoding.UTF8);
+            }
+            catch (Exception ex)
+            {
+                // Если не удалось сохранить в файл, выводим ошибку в консоль
+                Console.WriteLine($"Ошибка сохранения лога: {ex.Message}");
+            }
+        }
+
         public void SaveLogsToFile(string filePath)
         {
             lock (_lock)
@@ -92,6 +114,12 @@ namespace SteamTradeConfirmer.Services
                 
                 File.WriteAllText(filePath, sb.ToString(), Encoding.UTF8);
             }
+        }
+
+        public string GetLogFilePath()
+        {
+            var logDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "SteamTradeConfirmer", "Logs");
+            return Path.Combine(logDir, $"steam_trade_confirmer_{DateTime.Now:yyyyMMdd}.log");
         }
     }
 

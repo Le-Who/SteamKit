@@ -54,7 +54,7 @@
                             <Button x:Name="AddAccountButton" Content="Добавить" Click="AddAccountButton_Click"/>
                             <Button x:Name="RemoveAccountButton" Content="Удалить" Click="RemoveAccountButton_Click" IsEnabled="False"/>
                             <Button x:Name="SettingsButton" Content="Настройки" Click="SettingsButton_Click" Margin="10,0,0,0"/>
-                            <Button x:Name="LogsButton" Content="Логи" Click="LogsButton_Click" Margin="10,0,0,0"/>
+                            <Button x:Name="OpenLogsButton" Content="Открыть логи" Click="OpenLogsButton_Click" Margin="10,0,0,0"/>
                         </StackPanel>
                 </Grid>
             </Border>
