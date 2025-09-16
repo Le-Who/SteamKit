@@ -41,6 +41,7 @@ namespace SteamTradeConfirmer.Services
                 manager.Subscribe<SteamClient.DisconnectedCallback>(callback => OnDisconnected(callback, account));
                 manager.Subscribe<SteamUser.LoggedOnCallback>(callback => OnLoggedOn(callback, account));
                 manager.Subscribe<SteamUser.LoggedOffCallback>(callback => OnLoggedOff(callback, account));
+                manager.Subscribe<SteamUser.UpdateMachineAuthCallback>(callback => OnMachineAuth(callback, account));
 
                 LoggingService.Instance.LogInfo("События подписаны, запускаем обработку колбэков", account.Username);
 
@@ -53,18 +54,19 @@ namespace SteamTradeConfirmer.Services
 
                 LoggingService.Instance.LogInfo("Команда подключения отправлена", account.Username);
                 
-                // Добавляем таймаут для подключения
-                _ = Task.Run(async () =>
+                // Ждем подключения с таймаутом
+                var connected = await WaitForConnection(account, 10000); // 10 секунд на подключение
+                if (!connected)
                 {
-                    await Task.Delay(30000); // 30 секунд
-                    if (account.Status == "Подключение...")
-                    {
-                        LoggingService.Instance.LogError("Таймаут подключения к Steam (30 секунд)", account.Username);
-                        account.Status = "Таймаут подключения";
-                        account.ErrorMessage = "Не удалось подключиться к Steam в течение 30 секунд";
-                        AuthenticationFailed?.Invoke(this, (account, "Таймаут подключения"));
-                    }
-                });
+                    LoggingService.Instance.LogError("Таймаут подключения к Steam (10 секунд)", account.Username);
+                    account.Status = "Таймаут подключения";
+                    account.ErrorMessage = "Не удалось подключиться к Steam в течение 10 секунд";
+                    AuthenticationFailed?.Invoke(this, (account, "Таймаут подключения"));
+                    return false;
+                }
+
+                // После подключения начинаем аутентификацию
+                await BeginAuthentication(account);
                 return true;
             }
             catch (Exception ex)
@@ -77,17 +79,56 @@ namespace SteamTradeConfirmer.Services
             }
         }
 
+        private readonly Dictionary<SteamAccount, TaskCompletionSource<bool>> _connectionWaiters = new();
+
         private async void OnConnected(SteamClient.ConnectedCallback callback, SteamAccount account)
+        {
+            LoggingService.Instance.LogInfo("Подключение к Steam установлено", account.Username);
+            
+            // Уведомляем о подключении
+            if (_connectionWaiters.TryGetValue(account, out var waiter))
+            {
+                waiter.SetResult(true);
+                _connectionWaiters.Remove(account);
+            }
+        }
+
+        private async Task<bool> WaitForConnection(SteamAccount account, int timeoutMs)
+        {
+            var tcs = new TaskCompletionSource<bool>();
+            _connectionWaiters[account] = tcs;
+
+            try
+            {
+                var timeoutTask = Task.Delay(timeoutMs);
+                var completedTask = await Task.WhenAny(tcs.Task, timeoutTask);
+                
+                if (completedTask == timeoutTask)
+                {
+                    _connectionWaiters.Remove(account);
+                    return false;
+                }
+                
+                return await tcs.Task;
+            }
+            catch
+            {
+                _connectionWaiters.Remove(account);
+                return false;
+            }
+        }
+
+        private async Task BeginAuthentication(SteamAccount account)
         {
             try
             {
-                LoggingService.Instance.LogInfo("Подключение к Steam установлено", account.Username);
+                LoggingService.Instance.LogInfo("Начинаем аутентификацию через Steam", account.Username);
                 account.Status = "Аутентификация...";
                 account.ErrorMessage = string.Empty;
 
                 var steamUser = _steamUsers[account];
-                LoggingService.Instance.LogInfo("Начинаем аутентификацию через Steam", account.Username);
                 
+                // Используем новый API аутентификации
                 var authSession = await _clients[account].Authentication.BeginAuthSessionViaCredentialsAsync(new AuthSessionDetails
                 {
                     Username = account.Username,
@@ -98,10 +139,12 @@ namespace SteamTradeConfirmer.Services
 
                 LoggingService.Instance.LogInfo("Сессия аутентификации создана, ожидаем подтверждения", account.Username);
                 account.Status = "Ожидание подтверждения...";
+                
                 var pollResponse = await authSession.PollingWaitForResultAsync();
 
                 LoggingService.Instance.LogInfo($"Получен ответ аутентификации: {pollResponse.AccountName}", account.Username);
                 account.Status = "Вход в Steam...";
+                
                 steamUser.LogOn(new SteamUser.LogOnDetails
                 {
                     Username = pollResponse.AccountName,
@@ -152,6 +195,37 @@ namespace SteamTradeConfirmer.Services
             LoggingService.Instance.LogInfo($"Выход из Steam: {callback.Result}", account.Username);
             account.Status = "Выход выполнен";
             account.IsAuthenticated = false;
+        }
+
+        private void OnMachineAuth(SteamUser.UpdateMachineAuthCallback callback, SteamAccount account)
+        {
+            try
+            {
+                LoggingService.Instance.LogInfo("Получен запрос Machine Auth", account.Username);
+                
+                // Для упрощения, мы не сохраняем machine auth данные
+                // В реальном приложении здесь нужно сохранить данные в .maFile
+                
+                var steamUser = _steamUsers[account];
+                steamUser.SendMachineAuthResponse(new SteamUser.MachineAuthDetails
+                {
+                    JobID = callback.JobID,
+                    FileName = callback.FileName,
+                    BytesWritten = callback.BytesToWrite,
+                    FileSize = callback.BytesToWrite,
+                    Offset = callback.Offset,
+                    Result = EResult.OK,
+                    LastError = 0,
+                    OneTimePassword = callback.OneTimePassword,
+                    SentryFileHash = callback.SentryFileHash,
+                });
+                
+                LoggingService.Instance.LogInfo("Machine Auth ответ отправлен", account.Username);
+            }
+            catch (Exception ex)
+            {
+                LoggingService.Instance.LogError($"Ошибка Machine Auth: {ex.Message}", account.Username, ex);
+            }
         }
 
         private void RunCallbackLoop(CallbackManager manager, SteamAccount account)

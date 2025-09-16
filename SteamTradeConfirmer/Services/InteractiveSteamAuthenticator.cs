@@ -75,6 +75,7 @@ namespace SteamTradeConfirmer.Services
 
         public async Task<string> GetEmailCodeAsync(string email, bool previousCodeWasIncorrect)
         {
+            LoggingService.Instance.LogInfo($"Запрос email кода для {email} (предыдущий код был неверным: {previousCodeWasIncorrect})", _account.Username);
             return await RequestCodeFromUserAsync($"Введите код подтверждения, отправленный на {email}:");
         }
 
@@ -88,7 +89,7 @@ namespace SteamTradeConfirmer.Services
         {
             return await Task.Run(() =>
             {
-                var dialog = new ConfirmationDialog(_account.Username);
+                var dialog = new ConfirmationDialog(_account.Username, message);
                 dialog.Title = "Подтверждение Steam Guard";
                 
                 // Показываем диалог в UI потоке

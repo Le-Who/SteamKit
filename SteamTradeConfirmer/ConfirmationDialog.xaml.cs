@@ -7,10 +7,15 @@ namespace SteamTradeConfirmer
     {
         public string ConfirmationCode { get; private set; } = string.Empty;
 
-        public ConfirmationDialog(string accountName)
+        public ConfirmationDialog(string accountName, string instruction = "")
         {
             InitializeComponent();
             AccountTextBlock.Text = accountName;
+            
+            if (!string.IsNullOrEmpty(instruction))
+            {
+                InstructionTextBlock.Text = instruction;
+            }
         }
 
         private void ConfirmButton_Click(object sender, RoutedEventArgs e)
