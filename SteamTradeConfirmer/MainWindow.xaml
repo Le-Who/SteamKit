@@ -1,0 +1,113 @@
+<Window x:Class="SteamTradeConfirmer.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Steam Trade Confirmer" Height="600" Width="1000"
+        WindowStartupLocation="CenterScreen">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Заголовок -->
+        <Border Grid.Row="0" Background="#1B2838" Padding="10">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="Steam Trade Confirmer" FontSize="18" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
+                <TextBlock Text="v1.0" FontSize="12" Foreground="#C7D5E0" VerticalAlignment="Center" Margin="10,0,0,0"/>
+            </StackPanel>
+        </Border>
+
+        <!-- Основной контент -->
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="300"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Панель аккаунтов -->
+            <Border Grid.Column="0" BorderBrush="#2A475E" BorderThickness="0,0,1,0">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Grid.Row="0" Text="Аккаунты Steam" FontWeight="Bold" Margin="10" FontSize="14"/>
+                    
+                    <ListBox Grid.Row="1" x:Name="AccountsListBox" Margin="10,0,10,10" 
+                             SelectionChanged="AccountsListBox_SelectionChanged">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <StackPanel Margin="5">
+                                    <TextBlock Text="{Binding DisplayName}" FontWeight="Bold"/>
+                                    <TextBlock Text="{Binding Status}" FontSize="10" Foreground="Gray"/>
+                                    <TextBlock Text="{Binding ErrorMessage}" FontSize="9" Foreground="Red" 
+                                               Visibility="{Binding ErrorMessage, Converter={StaticResource StringToVisibilityConverter}}"/>
+                                </StackPanel>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+
+                    <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="10">
+                        <Button x:Name="AddAccountButton" Content="Добавить" Click="AddAccountButton_Click"/>
+                        <Button x:Name="RemoveAccountButton" Content="Удалить" Click="RemoveAccountButton_Click" IsEnabled="False"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- Панель обменов -->
+            <Grid Grid.Column="1">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <Border Grid.Row="0" Background="#2A475E" Padding="10">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="Исходящие обмены" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
+                        <Button x:Name="RefreshButton" Content="Обновить" Click="RefreshButton_Click" 
+                                Margin="20,0,0,0" Background="#66C0F4" Foreground="White"/>
+                    </StackPanel>
+                </Border>
+
+                <DataGrid Grid.Row="1" x:Name="TradeOffersDataGrid" AutoGenerateColumns="False" 
+                          CanUserAddRows="False" CanUserDeleteRows="False" IsReadOnly="True"
+                          GridLinesVisibility="Horizontal" HeadersVisibility="Column">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Аккаунт" Binding="{Binding AccountName}" Width="120"/>
+                        <DataGridTextColumn Header="Получатель" Binding="{Binding PartnerName}" Width="150"/>
+                        <DataGridTextColumn Header="Предметы" Binding="{Binding ItemsDescription}" Width="*"/>
+                        <DataGridTextColumn Header="Время" Binding="{Binding CreatedTime, StringFormat=dd.MM.yyyy HH:mm}" Width="120"/>
+                        <DataGridTextColumn Header="Статус" Binding="{Binding Status}" Width="100"/>
+                        <DataGridTemplateColumn Header="Действия" Width="150">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Horizontal">
+                                        <Button Content="✓" Background="Green" Foreground="White" 
+                                                Click="ConfirmTradeButton_Click" Tag="{Binding TradeOfferId}"
+                                                ToolTip="Подтвердить обмен" Margin="2" Padding="8,2"/>
+                                        <Button Content="✗" Background="Red" Foreground="White" 
+                                                Click="CancelTradeButton_Click" Tag="{Binding TradeOfferId}"
+                                                ToolTip="Отменить обмен" Margin="2" Padding="8,2"/>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </Grid>
+        </Grid>
+
+        <!-- Статус бар -->
+        <Border Grid.Row="2" Background="#2A475E" Padding="10">
+            <TextBlock x:Name="StatusTextBlock" Text="Готов к работе" Foreground="White"/>
+        </Border>
+    </Grid>
+
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
+        <local:StringToVisibilityConverter x:Key="StringToVisibilityConverter"/>
+    </Window.Resources>
+</Window>

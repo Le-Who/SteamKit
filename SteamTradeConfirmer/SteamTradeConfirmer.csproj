@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <Company>SteamRE</Company>
+    <Product>Steam Trade Confirmer</Product>
+    <Authors />
+    <Description>Desktop application for confirming Steam trade offers</Description>
+    <Copyright>Copyright © Pavel Djundik 2023</Copyright>
+    <PackageId>SteamTradeConfirmer</PackageId>
+    <AssemblyTitle>Steam Trade Confirmer</AssemblyTitle>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <FileVersion>1.0.0.0</FileVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\SteamKit2\SteamKit2\SteamKit2.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+    <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="8.0.0" />
+    <PackageReference Include="System.Text.Json" Version="8.0.0" />
+  </ItemGroup>
+
+</Project>
