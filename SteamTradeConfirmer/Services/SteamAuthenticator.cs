@@ -54,7 +54,12 @@ namespace SteamTradeConfirmer.Services
 
                 // Генерируем TOTP код
                 var totp = new TOTPGenerator(maFile.SharedSecret);
-                return totp.GenerateCode();
+                var code = totp.GenerateCode();
+                
+                // Обновляем статус аккаунта
+                _account.Status = $"Сгенерирован код: {code}";
+                
+                return code;
             }
             catch (Exception ex)
             {
@@ -76,20 +81,4 @@ namespace SteamTradeConfirmer.Services
         }
     }
 
-    public class MaFile
-    {
-        public string SharedSecret { get; set; } = string.Empty;
-        public string IdentitySecret { get; set; } = string.Empty;
-        public string RevocationCode { get; set; } = string.Empty;
-        public string Uri { get; set; } = string.Empty;
-        public string ServerTime { get; set; } = string.Empty;
-        public string AccountName { get; set; } = string.Empty;
-        public string TokenGid { get; set; } = string.Empty;
-        public string Identity { get; set; } = string.Empty;
-        public string Secret1 { get; set; } = string.Empty;
-        public int Status { get; set; }
-        public string DeviceId { get; set; } = string.Empty;
-        public string FullyEnrolled { get; set; } = string.Empty;
-        public string SessionData { get; set; } = string.Empty;
-    }
 }
