@@ -41,8 +41,10 @@ namespace SteamTradeConfirmer.Services
                     {
                         builder.WithWebAPIBaseAddress(new Uri("https://api.steampowered.com/"));
                         builder.WithDirectoryFetch(false); // Отключаем автоматическое получение списка серверов
+                        builder.WithConnectionTimeout(TimeSpan.FromSeconds(30)); // Увеличиваем таймаут
+                        builder.WithProtocolTypes(ProtocolTypes.WebSocket); // Используем только WebSocket
                     });
-                    LoggingService.Instance.LogInfo("✅ Альтернативная конфигурация создана", account.Username);
+                    LoggingService.Instance.LogInfo("✅ Альтернативная конфигурация создана (WebSocket, 30s timeout)", account.Username);
                     config = alternativeConfig;
                 }
                 catch (Exception configEx)
@@ -105,20 +107,83 @@ namespace SteamTradeConfirmer.Services
                     LoggingService.Instance.LogWarning($"⚠️ Проблемы с сетью: {netEx.Message}", account.Username);
                 }
                 
+                // Диагностика портов Steam
+                LoggingService.Instance.LogInfo("🔍 Проверка портов Steam...", account.Username);
+                try
+                {
+                    using var tcpClient = new System.Net.Sockets.TcpClient();
+                    var connectTask = tcpClient.ConnectAsync("steamcommunity.com", 443);
+                    var timeoutTask = Task.Delay(5000);
+                    var completedTask = await Task.WhenAny(connectTask, timeoutTask);
+                    
+                    if (completedTask == connectTask && tcpClient.Connected)
+                    {
+                        LoggingService.Instance.LogInfo("✅ Порт 443 (HTTPS) доступен", account.Username);
+                    }
+                    else
+                    {
+                        LoggingService.Instance.LogWarning("⚠️ Порт 443 (HTTPS) недоступен или таймаут", account.Username);
+                    }
+                }
+                catch (Exception portEx)
+                {
+                    LoggingService.Instance.LogWarning($"⚠️ Ошибка проверки портов: {portEx.Message}", account.Username);
+                }
+                
                 LoggingService.Instance.LogInfo("Вызов steamClient.Connect()...", account.Username);
                 
                 try
                 {
+                    LoggingService.Instance.LogInfo("🔌 Попытка подключения с WebSocket протоколом...", account.Username);
                     steamClient.Connect();
                     LoggingService.Instance.LogInfo($"Команда подключения отправлена. IsConnected: {steamClient.IsConnected}", account.Username);
+                    
+                    // Даем время на подключение
+                    await Task.Delay(2000);
+                    LoggingService.Instance.LogInfo($"Состояние через 2 секунды: IsConnected: {steamClient.IsConnected}", account.Username);
                 }
                 catch (Exception connectEx)
                 {
                     LoggingService.Instance.LogError($"ОШИБКА при вызове steamClient.Connect(): {connectEx.Message}", account.Username, connectEx);
-                    account.Status = "Ошибка подключения";
-                    account.ErrorMessage = $"Ошибка подключения: {connectEx.Message}";
-                    AuthenticationFailed?.Invoke(this, (account, connectEx.Message));
-                    return false;
+                    
+                    // Попробуем с TCP протоколом
+                    LoggingService.Instance.LogInfo("🔄 Попытка подключения с TCP протоколом...", account.Username);
+                    try
+                    {
+                        var tcpConfig = SteamConfiguration.Create(builder =>
+                        {
+                            builder.WithWebAPIBaseAddress(new Uri("https://api.steampowered.com/"));
+                            builder.WithDirectoryFetch(false);
+                            builder.WithConnectionTimeout(TimeSpan.FromSeconds(30));
+                            builder.WithProtocolTypes(ProtocolTypes.Tcp); // Используем только TCP
+                        });
+                        
+                        var tcpClient = new SteamClient(tcpConfig);
+                        var tcpManager = new CallbackManager(tcpClient);
+                        var tcpSteamUser = tcpClient.GetHandler<SteamUser>();
+                        
+                        _clients[account] = tcpClient;
+                        _managers[account] = tcpManager;
+                        _steamUsers[account] = tcpSteamUser;
+                        
+                        tcpManager.Subscribe<SteamClient.ConnectedCallback>(callback => OnConnected(callback, account));
+                        tcpManager.Subscribe<SteamClient.DisconnectedCallback>(callback => OnDisconnected(callback, account));
+                        tcpManager.Subscribe<SteamUser.LoggedOnCallback>(callback => OnLoggedOn(callback, account));
+                        tcpManager.Subscribe<SteamUser.LoggedOffCallback>(callback => OnLoggedOff(callback, account));
+                        
+                        _ = Task.Run(() => RunCallbackLoop(tcpManager, account));
+                        
+                        tcpClient.Connect();
+                        LoggingService.Instance.LogInfo($"TCP подключение отправлено. IsConnected: {tcpClient.IsConnected}", account.Username);
+                    }
+                    catch (Exception tcpEx)
+                    {
+                        LoggingService.Instance.LogError($"ОШИБКА TCP подключения: {tcpEx.Message}", account.Username, tcpEx);
+                        account.Status = "Ошибка подключения";
+                        account.ErrorMessage = $"Ошибка подключения: {connectEx.Message}";
+                        AuthenticationFailed?.Invoke(this, (account, connectEx.Message));
+                        return false;
+                    }
                 }
                 
                 // Ждем подключения с таймаутом
