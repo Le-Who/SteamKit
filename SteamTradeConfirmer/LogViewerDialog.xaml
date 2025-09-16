@@ -1,6 +1,7 @@
 <Window x:Class="SteamTradeConfirmer.LogViewerDialog"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:SteamTradeConfirmer"
         Title="Логи приложения" Height="500" Width="800"
         WindowStartupLocation="CenterOwner">
     <Grid>
