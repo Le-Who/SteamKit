@@ -36,30 +36,31 @@ namespace SteamTradeConfirmer.Services
 
         public async Task<string> GetDeviceCodeAsync(bool previousCodeWasIncorrect)
         {
-            LoggingService.Instance.LogInfo($"Запрос кода устройства (предыдущий код был неверным: {previousCodeWasIncorrect})", _account.Username);
+            LoggingService.Instance.LogInfo($"🔑 === ЗАПРОС КОДА УСТРОЙСТВА === (предыдущий код был неверным: {previousCodeWasIncorrect})", _account.Username);
             
             if (string.IsNullOrEmpty(_maFileContent))
             {
-                LoggingService.Instance.LogWarning(".maFile не найден, запрашиваем код у пользователя", _account.Username);
+                LoggingService.Instance.LogWarning("⚠️ .maFile не найден, запрашиваем код у пользователя", _account.Username);
                 // Если нет .maFile, запрашиваем код у пользователя
                 return await RequestCodeFromUserAsync("Введите код из мобильного приложения Steam:");
             }
 
             try
             {
+                LoggingService.Instance.LogInfo("📄 Парсинг .maFile...", _account.Username);
                 var maFile = System.Text.Json.JsonSerializer.Deserialize<MaFile>(_maFileContent);
                 if (maFile == null)
                 {
-                    LoggingService.Instance.LogError("Неверный формат .maFile", _account.Username);
+                    LoggingService.Instance.LogError("❌ Неверный формат .maFile", _account.Username);
                     return await RequestCodeFromUserAsync("Неверный формат .maFile. Введите код вручную:");
                 }
 
-                LoggingService.Instance.LogInfo("Генерируем TOTP код из .maFile", _account.Username);
+                LoggingService.Instance.LogInfo("🔐 Генерируем TOTP код из .maFile...", _account.Username);
                 // Генерируем TOTP код
                 var totp = new TOTPGenerator(maFile.SharedSecret);
                 var code = totp.GenerateCode();
                 
-                LoggingService.Instance.LogInfo($"TOTP код сгенерирован: {code}", _account.Username);
+                LoggingService.Instance.LogInfo($"✅ TOTP код сгенерирован успешно: {code}", _account.Username);
                 // Обновляем статус аккаунта
                 _account.Status = $"Сгенерирован код: {code}";
                 
@@ -67,7 +68,7 @@ namespace SteamTradeConfirmer.Services
             }
             catch (Exception ex)
             {
-                LoggingService.Instance.LogError($"Ошибка генерации TOTP кода: {ex.Message}", _account.Username, ex);
+                LoggingService.Instance.LogError($"💥 ОШИБКА генерации TOTP кода: {ex.Message}", _account.Username, ex);
                 _account.ErrorMessage = $"Ошибка генерации кода: {ex.Message}";
                 return await RequestCodeFromUserAsync($"Ошибка генерации кода. Введите код вручную: {ex.Message}");
             }
