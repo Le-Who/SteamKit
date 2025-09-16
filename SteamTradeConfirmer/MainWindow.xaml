@@ -53,6 +53,7 @@
                     <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="10">
                         <Button x:Name="AddAccountButton" Content="Добавить" Click="AddAccountButton_Click"/>
                         <Button x:Name="RemoveAccountButton" Content="Удалить" Click="RemoveAccountButton_Click" IsEnabled="False"/>
+                        <Button x:Name="SettingsButton" Content="Настройки" Click="SettingsButton_Click" Margin="10,0,0,0"/>
                     </StackPanel>
                 </Grid>
             </Border>

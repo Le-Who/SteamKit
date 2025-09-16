@@ -205,6 +205,15 @@ namespace SteamTradeConfirmer
             });
         }
 
+        private void SettingsButton_Click(object sender, RoutedEventArgs e)
+        {
+            var dialog = new SettingsDialog();
+            if (dialog.ShowDialog() == true)
+            {
+                UpdateStatus("Настройки обновлены");
+            }
+        }
+
         private void UpdateStatus(string message)
         {
             StatusTextBlock.Text = $"{DateTime.Now:HH:mm:ss} - {message}";
