@@ -214,6 +214,12 @@ namespace SteamTradeConfirmer
             }
         }
 
+        private void LogsButton_Click(object sender, RoutedEventArgs e)
+        {
+            var dialog = new LogViewerDialog();
+            dialog.ShowDialog();
+        }
+
         private void UpdateStatus(string message)
         {
             StatusTextBlock.Text = $"{DateTime.Now:HH:mm:ss} - {message}";

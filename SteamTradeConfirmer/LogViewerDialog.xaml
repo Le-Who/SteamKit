@@ -1,0 +1,52 @@
+<Window x:Class="SteamTradeConfirmer.LogViewerDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Логи приложения" Height="500" Width="800"
+        WindowStartupLocation="CenterOwner">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Панель управления -->
+        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="10">
+            <Button x:Name="RefreshButton" Content="Обновить" Click="RefreshButton_Click" Margin="0,0,10,0"/>
+            <Button x:Name="ClearButton" Content="Очистить" Click="ClearButton_Click" Margin="0,0,10,0"/>
+            <Button x:Name="SaveButton" Content="Сохранить в файл" Click="SaveButton_Click" Margin="0,0,10,0"/>
+            <CheckBox x:Name="AutoScrollCheckBox" Content="Автопрокрутка" IsChecked="True" VerticalAlignment="Center"/>
+        </StackPanel>
+
+        <!-- Список логов -->
+        <ListBox x:Name="LogsListBox" Grid.Row="1" Margin="10" FontFamily="Consolas" FontSize="11">
+            <ListBox.ItemTemplate>
+                <DataTemplate>
+                    <StackPanel Orientation="Vertical">
+                        <TextBlock>
+                            <Run Text="{Binding Timestamp, StringFormat='{}{0:HH:mm:ss.fff}'}" Foreground="Gray"/>
+                            <Run Text=" [" Foreground="Gray"/>
+                            <Run Text="{Binding Level}" Foreground="{Binding Level, Converter={StaticResource LogLevelToColorConverter}}"/>
+                            <Run Text="]" Foreground="Gray"/>
+                            <Run Text=" " Foreground="Gray"/>
+                            <Run Text="{Binding AccountName}" Foreground="Blue" FontWeight="Bold"/>
+                            <Run Text=" " Foreground="Gray"/>
+                            <Run Text="{Binding Message}"/>
+                        </TextBlock>
+                    </StackPanel>
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
+
+        <!-- Статус бар -->
+        <StatusBar Grid.Row="2">
+            <StatusBarItem>
+                <TextBlock x:Name="StatusTextBlock" Text="Готов"/>
+            </StatusBarItem>
+        </StatusBar>
+    </Grid>
+
+    <Window.Resources>
+        <local:LogLevelToColorConverter x:Key="LogLevelToColorConverter"/>
+    </Window.Resources>
+</Window>
