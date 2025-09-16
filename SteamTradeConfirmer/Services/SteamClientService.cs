@@ -28,8 +28,44 @@ namespace SteamTradeConfirmer.Services
 
                 // Создание SteamClient с детальным логированием
                 LoggingService.Instance.LogInfo("Создание SteamClient...", account.Username);
-                var steamClient = new SteamClient();
-                LoggingService.Instance.LogInfo($"SteamClient создан. IsConnected: {steamClient.IsConnected}", account.Username);
+                
+                // Создаем конфигурацию SteamKit2 с диагностикой
+                var config = SteamConfiguration.Create(builder => { });
+                LoggingService.Instance.LogInfo($"SteamConfiguration создана. WebAPIBaseAddress: {config.WebAPIBaseAddress}", account.Username);
+                
+                // Попробуем альтернативную конфигурацию с явными серверами
+                LoggingService.Instance.LogInfo("🔧 Попытка альтернативной конфигурации SteamKit2...", account.Username);
+                try
+                {
+                    var alternativeConfig = SteamConfiguration.Create(builder =>
+                    {
+                        builder.WithWebAPIBaseAddress(new Uri("https://api.steampowered.com/"));
+                        builder.WithDirectoryFetch(false); // Отключаем автоматическое получение списка серверов
+                    });
+                    LoggingService.Instance.LogInfo("✅ Альтернативная конфигурация создана", account.Username);
+                    config = alternativeConfig;
+                }
+                catch (Exception configEx)
+                {
+                    LoggingService.Instance.LogWarning($"⚠️ Ошибка создания альтернативной конфигурации: {configEx.Message}", account.Username);
+                }
+                
+                // Проверяем доступность Steam серверов
+                LoggingService.Instance.LogInfo("🔍 Проверка доступности Steam серверов...", account.Username);
+                try
+                {
+                    using var httpClient = new System.Net.Http.HttpClient();
+                    httpClient.Timeout = TimeSpan.FromSeconds(3);
+                    var steamResponse = await httpClient.GetAsync("https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/");
+                    LoggingService.Instance.LogInfo($"🌐 Steam API доступен: {steamResponse.StatusCode}", account.Username);
+                }
+                catch (Exception steamEx)
+                {
+                    LoggingService.Instance.LogWarning($"⚠️ Steam API недоступен: {steamEx.Message}", account.Username);
+                }
+                
+                var steamClient = new SteamClient(config);
+                LoggingService.Instance.LogInfo($"SteamClient создан с конфигурацией. IsConnected: {steamClient.IsConnected}", account.Username);
                 
                 var manager = new CallbackManager(steamClient);
                 var steamUser = steamClient.GetHandler<SteamUser>();
@@ -55,9 +91,35 @@ namespace SteamTradeConfirmer.Services
                 // Проверяем состояние перед подключением
                 LoggingService.Instance.LogInfo($"Состояние перед подключением - IsConnected: {steamClient.IsConnected}", account.Username);
                 
+                // Диагностика сетевых проблем
+                LoggingService.Instance.LogInfo("🔍 Проверка сетевой доступности...", account.Username);
+                try
+                {
+                    using var httpClient = new System.Net.Http.HttpClient();
+                    httpClient.Timeout = TimeSpan.FromSeconds(5);
+                    var response = await httpClient.GetAsync("https://steamcommunity.com");
+                    LoggingService.Instance.LogInfo($"🌐 Steam Community доступен: {response.StatusCode}", account.Username);
+                }
+                catch (Exception netEx)
+                {
+                    LoggingService.Instance.LogWarning($"⚠️ Проблемы с сетью: {netEx.Message}", account.Username);
+                }
+                
                 LoggingService.Instance.LogInfo("Вызов steamClient.Connect()...", account.Username);
-                steamClient.Connect();
-                LoggingService.Instance.LogInfo($"Команда подключения отправлена. IsConnected: {steamClient.IsConnected}", account.Username);
+                
+                try
+                {
+                    steamClient.Connect();
+                    LoggingService.Instance.LogInfo($"Команда подключения отправлена. IsConnected: {steamClient.IsConnected}", account.Username);
+                }
+                catch (Exception connectEx)
+                {
+                    LoggingService.Instance.LogError($"ОШИБКА при вызове steamClient.Connect(): {connectEx.Message}", account.Username, connectEx);
+                    account.Status = "Ошибка подключения";
+                    account.ErrorMessage = $"Ошибка подключения: {connectEx.Message}";
+                    AuthenticationFailed?.Invoke(this, (account, connectEx.Message));
+                    return false;
+                }
                 
                 // Ждем подключения с таймаутом
                 LoggingService.Instance.LogInfo("Ожидание подключения (таймаут 10 секунд)...", account.Username);
@@ -225,19 +287,43 @@ namespace SteamTradeConfirmer.Services
             {
                 LoggingService.Instance.LogInfo("🔄 Запуск цикла обработки колбэков", account.Username);
                 var iterationCount = 0;
+                var lastIsConnected = false;
                 
                 while (_clients.ContainsKey(account) && _clients[account].IsConnected)
                 {
                     iterationCount++;
+                    var currentIsConnected = _clients[account].IsConnected;
+                    
+                    // Логируем изменение состояния подключения
+                    if (currentIsConnected != lastIsConnected)
+                    {
+                        LoggingService.Instance.LogInfo($"🔄 Изменение состояния подключения: {lastIsConnected} -> {currentIsConnected} (итерация {iterationCount})", account.Username);
+                        lastIsConnected = currentIsConnected;
+                    }
+                    
                     if (iterationCount % 5 == 0) // Логируем каждые 5 секунд
                     {
                         LoggingService.Instance.LogInfo($"Цикл обработки колбэков активен (итерация {iterationCount}), IsConnected: {_clients[account].IsConnected}", account.Username);
                     }
                     
-                    manager.RunWaitCallbacks(TimeSpan.FromSeconds(1));
+                    try
+                    {
+                        manager.RunWaitCallbacks(TimeSpan.FromSeconds(1));
+                    }
+                    catch (Exception callbackEx)
+                    {
+                        LoggingService.Instance.LogError($"Ошибка в RunWaitCallbacks: {callbackEx.Message}", account.Username, callbackEx);
+                    }
                 }
                 
                 LoggingService.Instance.LogInfo($"🛑 Цикл обработки колбэков завершен после {iterationCount} итераций. IsConnected: {(_clients.ContainsKey(account) ? _clients[account].IsConnected.ToString() : "N/A")}", account.Username);
+                
+                // Дополнительная диагностика
+                if (iterationCount == 0)
+                {
+                    LoggingService.Instance.LogError("🚨 КРИТИЧЕСКАЯ ПРОБЛЕМА: CallbackManager завершился немедленно! Это означает, что SteamClient.IsConnected = false сразу после Connect()", account.Username);
+                    LoggingService.Instance.LogError("🔍 Возможные причины: 1) Сетевые проблемы 2) Блокировка портов Steam 3) Проблемы с DNS 4) Проблемы с прокси/файрволом", account.Username);
+                }
             }
             catch (Exception ex)
             {
