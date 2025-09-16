@@ -61,6 +61,7 @@ namespace SteamTradeConfirmer.Services
             try
             {
                 account.Status = "Аутентификация...";
+                account.ErrorMessage = string.Empty;
 
                 var steamUser = _steamUsers[account];
                 var authSession = await _clients[account].Authentication.BeginAuthSessionViaCredentialsAsync(new AuthSessionDetails
@@ -68,11 +69,13 @@ namespace SteamTradeConfirmer.Services
                     Username = account.Username,
                     Password = account.Password,
                     IsPersistentSession = false,
-                    Authenticator = new SteamAuthenticator(account)
+                    Authenticator = new InteractiveSteamAuthenticator(account)
                 });
 
+                account.Status = "Ожидание подтверждения...";
                 var pollResponse = await authSession.PollingWaitForResultAsync();
 
+                account.Status = "Вход в Steam...";
                 steamUser.LogOn(new SteamUser.LogOnDetails
                 {
                     Username = pollResponse.AccountName,
