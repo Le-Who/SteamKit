@@ -122,7 +122,7 @@ namespace SteamTradeConfirmer.Services
 
         private void OnDisconnected(SteamClient.DisconnectedCallback callback, SteamAccount account)
         {
-            LoggingService.Instance.LogWarning($"Отключение от Steam: {callback.Result}", account.Username);
+            LoggingService.Instance.LogWarning("Отключение от Steam", account.Username);
             account.Status = "Отключен";
             account.IsAuthenticated = false;
             AccountDisconnected?.Invoke(this, account);
