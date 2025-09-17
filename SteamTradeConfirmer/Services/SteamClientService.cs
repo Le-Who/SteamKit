@@ -84,14 +84,12 @@ namespace SteamTradeConfirmer.Services
                 manager.Subscribe<SteamClient.DisconnectedCallback>(callback => OnDisconnected(callback, account));
                 manager.Subscribe<SteamUser.LoggedOnCallback>(callback => OnLoggedOn(callback, account));
                 manager.Subscribe<SteamUser.LoggedOffCallback>(callback => OnLoggedOff(callback, account));
+                manager.Subscribe<SteamUser.UpdateMachineAuthCallback>(callback => OnUpdateMachineAuth(callback, account));
+                manager.Subscribe<SteamUser.AccountInfoCallback>(callback => OnAccountInfo(callback, account));
                 LoggingService.Instance.LogInfo("Подписка на события завершена", account.Username);
 
-                // Запускаем обработку колбэков в отдельном потоке
-                LoggingService.Instance.LogInfo("Запуск цикла обработки колбэков в отдельном потоке", account.Username);
-                _ = Task.Run(() => RunCallbackLoop(manager, account));
-
-                // Проверяем состояние перед подключением
-                LoggingService.Instance.LogInfo($"Состояние перед подключением - IsConnected: {steamClient.IsConnected}", account.Username);
+               // Проверяем состояние перед подключением
+               LoggingService.Instance.LogInfo($"Состояние перед подключением - IsConnected: {steamClient.IsConnected}", account.Username);
                 
                 // Диагностика сетевых проблем
                 LoggingService.Instance.LogInfo("🔍 Проверка сетевой доступности...", account.Username);
@@ -130,18 +128,22 @@ namespace SteamTradeConfirmer.Services
                     LoggingService.Instance.LogWarning($"⚠️ Ошибка проверки портов: {portEx.Message}", account.Username);
                 }
                 
-                LoggingService.Instance.LogInfo("Вызов steamClient.Connect()...", account.Username);
-                
-                try
-                {
-                    LoggingService.Instance.LogInfo("🔌 Попытка подключения с WebSocket протоколом...", account.Username);
-                    steamClient.Connect();
-                    LoggingService.Instance.LogInfo($"Команда подключения отправлена. IsConnected: {steamClient.IsConnected}", account.Username);
-                    
-                    // Даем время на подключение
-                    await Task.Delay(2000);
-                    LoggingService.Instance.LogInfo($"Состояние через 2 секунды: IsConnected: {steamClient.IsConnected}", account.Username);
-                }
+               LoggingService.Instance.LogInfo("Вызов steamClient.Connect()...", account.Username);
+               
+               try
+               {
+                   LoggingService.Instance.LogInfo("🔌 Попытка подключения с WebSocket протоколом...", account.Username);
+                   steamClient.Connect();
+                   LoggingService.Instance.LogInfo($"Команда подключения отправлена. IsConnected: {steamClient.IsConnected}", account.Username);
+                   
+                   // Запускаем обработку колбэков ПОСЛЕ вызова Connect()
+                   LoggingService.Instance.LogInfo("Запуск цикла обработки колбэков в отдельном потоке", account.Username);
+                   _ = Task.Run(() => RunCallbackLoop(manager, account));
+                   
+                   // Даем время на подключение
+                   await Task.Delay(2000);
+                   LoggingService.Instance.LogInfo($"Состояние через 2 секунды: IsConnected: {steamClient.IsConnected}", account.Username);
+               }
                 catch (Exception connectEx)
                 {
                     LoggingService.Instance.LogError($"ОШИБКА при вызове steamClient.Connect(): {connectEx.Message}", account.Username, connectEx);
@@ -166,15 +168,18 @@ namespace SteamTradeConfirmer.Services
                         _managers[account] = tcpManager;
                         _steamUsers[account] = tcpSteamUser;
                         
-                        tcpManager.Subscribe<SteamClient.ConnectedCallback>(callback => OnConnected(callback, account));
-                        tcpManager.Subscribe<SteamClient.DisconnectedCallback>(callback => OnDisconnected(callback, account));
-                        tcpManager.Subscribe<SteamUser.LoggedOnCallback>(callback => OnLoggedOn(callback, account));
-                        tcpManager.Subscribe<SteamUser.LoggedOffCallback>(callback => OnLoggedOff(callback, account));
-                        
-                        _ = Task.Run(() => RunCallbackLoop(tcpManager, account));
-                        
-                        tcpClient.Connect();
-                        LoggingService.Instance.LogInfo($"TCP подключение отправлено. IsConnected: {tcpClient.IsConnected}", account.Username);
+                       tcpManager.Subscribe<SteamClient.ConnectedCallback>(callback => OnConnected(callback, account));
+                       tcpManager.Subscribe<SteamClient.DisconnectedCallback>(callback => OnDisconnected(callback, account));
+                       tcpManager.Subscribe<SteamUser.LoggedOnCallback>(callback => OnLoggedOn(callback, account));
+                       tcpManager.Subscribe<SteamUser.LoggedOffCallback>(callback => OnLoggedOff(callback, account));
+                       tcpManager.Subscribe<SteamUser.UpdateMachineAuthCallback>(callback => OnUpdateMachineAuth(callback, account));
+                       tcpManager.Subscribe<SteamUser.AccountInfoCallback>(callback => OnAccountInfo(callback, account));
+                       
+                       tcpClient.Connect();
+                       LoggingService.Instance.LogInfo($"TCP подключение отправлено. IsConnected: {tcpClient.IsConnected}", account.Username);
+                       
+                       // Запускаем обработку колбэков ПОСЛЕ вызова Connect()
+                       _ = Task.Run(() => RunCallbackLoop(tcpManager, account));
                     }
                     catch (Exception tcpEx)
                     {
@@ -186,9 +191,9 @@ namespace SteamTradeConfirmer.Services
                     }
                 }
                 
-                // Ждем подключения с таймаутом
-                LoggingService.Instance.LogInfo("Ожидание подключения (таймаут 10 секунд)...", account.Username);
-                var connected = await WaitForConnection(account, 10000);
+               // Ждем подключения с увеличенным таймаутом
+               LoggingService.Instance.LogInfo("Ожидание подключения (таймаут 30 секунд)...", account.Username);
+               var connected = await WaitForConnection(account, 30000);
                 
                 if (!connected)
                 {
@@ -321,17 +326,52 @@ namespace SteamTradeConfirmer.Services
 
         private void OnLoggedOn(SteamUser.LoggedOnCallback callback, SteamAccount account)
         {
+            LoggingService.Instance.LogInfo($"🔐 Результат входа в Steam: {callback.Result}", account.Username);
+            
             if (callback.Result == EResult.OK)
             {
-                LoggingService.Instance.LogInfo($"Успешный вход в Steam: {callback.Result}", account.Username);
+                LoggingService.Instance.LogInfo($"✅ Успешный вход в Steam: {account.Username}", account.Username);
+                LoggingService.Instance.LogInfo($"Steam ID: {callback.ClientSteamID}", account.Username);
+                LoggingService.Instance.LogInfo($"Out of Game Heartbeat Seconds: {callback.OutOfGameHeartbeatSeconds}", account.Username);
+                LoggingService.Instance.LogInfo($"In Game Heartbeat Seconds: {callback.InGameHeartbeatSeconds}", account.Username);
+                
                 account.Status = "Подключен";
                 account.IsAuthenticated = true;
                 account.DisplayName = account.Username; // PersonaName будет получен позже через SteamFriends
+                account.ErrorMessage = string.Empty;
                 AccountAuthenticated?.Invoke(this, account);
+            }
+            else if (callback.Result == EResult.AccountLogonDenied)
+            {
+                LoggingService.Instance.LogWarning($"⚠️ Требуется подтверждение входа: {callback.Result}", account.Username);
+                account.Status = "Требуется подтверждение";
+                account.ErrorMessage = "Проверьте email или мобильное приложение Steam";
+                AuthenticationFailed?.Invoke(this, (account, "Требуется подтверждение входа"));
+            }
+            else if (callback.Result == EResult.InvalidPassword)
+            {
+                LoggingService.Instance.LogError($"❌ Неверный пароль: {callback.Result}", account.Username);
+                account.Status = "Неверный пароль";
+                account.ErrorMessage = "Проверьте правильность пароля";
+                AuthenticationFailed?.Invoke(this, (account, "Неверный пароль"));
+            }
+            else if (callback.Result == EResult.TwoFactorCodeMismatch)
+            {
+                LoggingService.Instance.LogError($"❌ Неверный код Steam Guard: {callback.Result}", account.Username);
+                account.Status = "Неверный код";
+                account.ErrorMessage = "Проверьте правильность кода Steam Guard";
+                AuthenticationFailed?.Invoke(this, (account, "Неверный код Steam Guard"));
+            }
+            else if (callback.Result == EResult.AccountLoginDeniedNeedTwoFactor)
+            {
+                LoggingService.Instance.LogWarning($"⚠️ Требуется код Steam Guard: {callback.Result}", account.Username);
+                account.Status = "Требуется код";
+                account.ErrorMessage = "Введите код из мобильного приложения Steam";
+                AuthenticationFailed?.Invoke(this, (account, "Требуется код Steam Guard"));
             }
             else
             {
-                LoggingService.Instance.LogError($"Ошибка входа в Steam: {callback.Result} / {callback.ExtendedResult}", account.Username);
+                LoggingService.Instance.LogError($"❌ Ошибка входа в Steam: {callback.Result} / {callback.ExtendedResult}", account.Username);
                 account.Status = "Ошибка входа";
                 account.ErrorMessage = $"Не удалось войти: {callback.Result}";
                 AuthenticationFailed?.Invoke(this, (account, account.ErrorMessage));
@@ -343,6 +383,38 @@ namespace SteamTradeConfirmer.Services
             LoggingService.Instance.LogInfo($"Выход из Steam: {callback.Result}", account.Username);
             account.Status = "Выход выполнен";
             account.IsAuthenticated = false;
+        }
+
+        private void OnUpdateMachineAuth(SteamUser.UpdateMachineAuthCallback callback, SteamAccount account)
+        {
+            LoggingService.Instance.LogInfo($"🔐 Получен запрос Machine Auth для {account.Username}", account.Username);
+            LoggingService.Instance.LogInfo($"Machine Auth: {callback.Data.Length} байт данных", account.Username);
+            
+            // Отправляем подтверждение Machine Auth
+            var steamUser = _steamUsers[account];
+            steamUser.SendMachineAuthResponse(new SteamUser.MachineAuthDetails
+            {
+                JobID = callback.JobID,
+                FileName = callback.FileName,
+                BytesWritten = callback.BytesToWrite,
+                FileSize = callback.Data.Length,
+                Offset = callback.Offset,
+                Result = EResult.OK,
+                LastError = 0,
+                OneTimePassword = callback.OneTimePassword,
+                SentryFileHash = callback.Data,
+                FileName = callback.FileName
+            });
+            
+            LoggingService.Instance.LogInfo($"✅ Machine Auth подтвержден для {account.Username}", account.Username);
+        }
+
+        private void OnAccountInfo(SteamUser.AccountInfoCallback callback, SteamAccount account)
+        {
+            LoggingService.Instance.LogInfo($"📋 Получена информация об аккаунте {account.Username}", account.Username);
+            LoggingService.Instance.LogInfo($"Persona Name: {callback.PersonaName}", account.Username);
+            LoggingService.Instance.LogInfo($"Country: {callback.Country}", account.Username);
+            LoggingService.Instance.LogInfo($"Count Authed Computers: {callback.CountAuthedComputers}", account.Username);
         }
 
 
