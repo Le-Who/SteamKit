@@ -84,8 +84,6 @@ namespace SteamTradeConfirmer.Services
                 manager.Subscribe<SteamClient.DisconnectedCallback>(callback => OnDisconnected(callback, account));
                 manager.Subscribe<SteamUser.LoggedOnCallback>(callback => OnLoggedOn(callback, account));
                 manager.Subscribe<SteamUser.LoggedOffCallback>(callback => OnLoggedOff(callback, account));
-                manager.Subscribe<SteamUser.UpdateMachineAuthCallback>(callback => OnUpdateMachineAuth(callback, account));
-                manager.Subscribe<SteamUser.AccountInfoCallback>(callback => OnAccountInfo(callback, account));
                 LoggingService.Instance.LogInfo("Подписка на события завершена", account.Username);
 
                // Проверяем состояние перед подключением
@@ -172,8 +170,6 @@ namespace SteamTradeConfirmer.Services
                        tcpManager.Subscribe<SteamClient.DisconnectedCallback>(callback => OnDisconnected(callback, account));
                        tcpManager.Subscribe<SteamUser.LoggedOnCallback>(callback => OnLoggedOn(callback, account));
                        tcpManager.Subscribe<SteamUser.LoggedOffCallback>(callback => OnLoggedOff(callback, account));
-                       tcpManager.Subscribe<SteamUser.UpdateMachineAuthCallback>(callback => OnUpdateMachineAuth(callback, account));
-                       tcpManager.Subscribe<SteamUser.AccountInfoCallback>(callback => OnAccountInfo(callback, account));
                        
                        tcpClient.Connect();
                        LoggingService.Instance.LogInfo($"TCP подключение отправлено. IsConnected: {tcpClient.IsConnected}", account.Username);
@@ -385,37 +381,6 @@ namespace SteamTradeConfirmer.Services
             account.IsAuthenticated = false;
         }
 
-        private void OnUpdateMachineAuth(SteamUser.UpdateMachineAuthCallback callback, SteamAccount account)
-        {
-            LoggingService.Instance.LogInfo($"🔐 Получен запрос Machine Auth для {account.Username}", account.Username);
-            LoggingService.Instance.LogInfo($"Machine Auth: {callback.Data.Length} байт данных", account.Username);
-            
-            // Отправляем подтверждение Machine Auth
-            var steamUser = _steamUsers[account];
-            steamUser.SendMachineAuthResponse(new SteamUser.MachineAuthDetails
-            {
-                JobID = callback.JobID,
-                FileName = callback.FileName,
-                BytesWritten = callback.BytesToWrite,
-                FileSize = callback.Data.Length,
-                Offset = callback.Offset,
-                Result = EResult.OK,
-                LastError = 0,
-                OneTimePassword = callback.OneTimePassword,
-                SentryFileHash = callback.Data,
-                FileName = callback.FileName
-            });
-            
-            LoggingService.Instance.LogInfo($"✅ Machine Auth подтвержден для {account.Username}", account.Username);
-        }
-
-        private void OnAccountInfo(SteamUser.AccountInfoCallback callback, SteamAccount account)
-        {
-            LoggingService.Instance.LogInfo($"📋 Получена информация об аккаунте {account.Username}", account.Username);
-            LoggingService.Instance.LogInfo($"Persona Name: {callback.PersonaName}", account.Username);
-            LoggingService.Instance.LogInfo($"Country: {callback.Country}", account.Username);
-            LoggingService.Instance.LogInfo($"Count Authed Computers: {callback.CountAuthedComputers}", account.Username);
-        }
 
 
         private void RunCallbackLoop(CallbackManager manager, SteamAccount account)
