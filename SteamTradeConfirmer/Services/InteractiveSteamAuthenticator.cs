@@ -40,10 +40,19 @@ namespace SteamTradeConfirmer.Services
         {
             LoggingService.Instance.LogInfo($"🔑 === ЗАПРОС КОДА УСТРОЙСТВА === (предыдущий код был неверным: {previousCodeWasIncorrect})", _account.Username);
             
+            // Если предыдущий код был неправильным, запрашиваем ручной ввод
+            if (previousCodeWasIncorrect)
+            {
+                LoggingService.Instance.LogWarning($"⚠️ Предыдущий TOTP код был неправильным, запрашиваем ручной ввод", _account.Username);
+                // Очищаем кэш неправильного кода
+                _cachedCode = string.Empty;
+                _codeGeneratedAt = DateTime.MinValue;
+                return await RequestCodeFromUserAsync("TOTP код был неправильным. Введите код вручную из мобильного приложения Steam:");
+            }
+            
             // Проверяем кэшированный код (действителен 30 секунд)
             if (!string.IsNullOrEmpty(_cachedCode) && 
-                DateTime.Now.Subtract(_codeGeneratedAt).TotalSeconds < 30 && 
-                !previousCodeWasIncorrect)
+                DateTime.Now.Subtract(_codeGeneratedAt).TotalSeconds < 30)
             {
                 LoggingService.Instance.LogInfo($"🔄 Используем кэшированный TOTP код: {_cachedCode}", _account.Username);
                 return _cachedCode;
