@@ -9,6 +9,8 @@ namespace SteamTradeConfirmer.Services
     {
         private readonly SteamAccount _account;
         private readonly string _maFileContent;
+        private string _cachedCode = string.Empty;
+        private DateTime _codeGeneratedAt = DateTime.MinValue;
 
         public InteractiveSteamAuthenticator(SteamAccount account)
         {
@@ -37,6 +39,15 @@ namespace SteamTradeConfirmer.Services
         public async Task<string> GetDeviceCodeAsync(bool previousCodeWasIncorrect)
         {
             LoggingService.Instance.LogInfo($"🔑 === ЗАПРОС КОДА УСТРОЙСТВА === (предыдущий код был неверным: {previousCodeWasIncorrect})", _account.Username);
+            
+            // Проверяем кэшированный код (действителен 30 секунд)
+            if (!string.IsNullOrEmpty(_cachedCode) && 
+                DateTime.Now.Subtract(_codeGeneratedAt).TotalSeconds < 30 && 
+                !previousCodeWasIncorrect)
+            {
+                LoggingService.Instance.LogInfo($"🔄 Используем кэшированный TOTP код: {_cachedCode}", _account.Username);
+                return _cachedCode;
+            }
             
             if (string.IsNullOrEmpty(_maFileContent))
             {
@@ -72,7 +83,11 @@ namespace SteamTradeConfirmer.Services
                     var totp = new TOTPGenerator(maFile.SharedSecret);
                     var code = totp.GenerateCode();
                 
-                    LoggingService.Instance.LogInfo($"✅ TOTP код сгенерирован успешно: {code}", _account.Username);
+                    // Кэшируем код на 30 секунд
+                    _cachedCode = code;
+                    _codeGeneratedAt = DateTime.Now;
+                    
+                    LoggingService.Instance.LogInfo($"✅ TOTP код сгенерирован и кэширован: {code}", _account.Username);
                     // Обновляем статус аккаунта
                     _account.Status = $"Сгенерирован код: {code}";
                     
