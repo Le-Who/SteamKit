@@ -194,7 +194,7 @@ namespace SteamTradeConfirmer
             {
                 UpdateStatus($"Аккаунт {account.Username} успешно подключен");
                 // Автоматически обновляем список обменов при подключении нового аккаунта
-                RefreshTradeOffers();
+                _ = RefreshTradeOffers();
             });
         }
 

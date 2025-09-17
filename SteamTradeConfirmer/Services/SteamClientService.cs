@@ -111,7 +111,7 @@ namespace SteamTradeConfirmer.Services
 
         private readonly Dictionary<SteamAccount, TaskCompletionSource<bool>> _connectionWaiters = new();
 
-        private async void OnConnected(SteamClient.ConnectedCallback callback, SteamAccount account)
+        private void OnConnected(SteamClient.ConnectedCallback callback, SteamAccount account)
         {
             LoggingService.Instance.LogInfo("🎉 ПОДКЛЮЧЕНИЕ К STEAM УСТАНОВЛЕНО! 🎉", account.Username);
             

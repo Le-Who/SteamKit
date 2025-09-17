@@ -555,7 +555,7 @@ namespace SteamTradeConfirmer.Services
             }
             catch (Exception ex)
             {
-                LoggingService.Instance.LogError($"❌ Ошибка извлечения ID трейдов: {ex.Message}", ex: ex);
+                LoggingService.Instance.LogError($"❌ Ошибка извлечения ID трейдов: {ex.Message}", null, ex);
             }
             
             return tradeIds;
