@@ -71,6 +71,24 @@ namespace SteamTradeConfirmer.Services
                 });
 
                 LoggingService.Instance.LogInfo($"🌐 Получен ответ от Steam Web API", account.Username);
+                
+                // Отладочная информация о структуре ответа
+                if (allOffers != null && allOffers["response"] != null)
+                {
+                    var response = allOffers["response"];
+                    LoggingService.Instance.LogInfo($"🔍 Структура ответа API:", account.Username);
+                    LoggingService.Instance.LogInfo($"  - trade_offers_sent: {response["trade_offers_sent"] != null}", account.Username);
+                    LoggingService.Instance.LogInfo($"  - trade_offers_received: {response["trade_offers_received"] != null}", account.Username);
+                    
+                    if (response["trade_offers_sent"] != null)
+                    {
+                        LoggingService.Instance.LogInfo($"  - Количество отправленных: {response["trade_offers_sent"].Children.Count()}", account.Username);
+                    }
+                    if (response["trade_offers_received"] != null)
+                    {
+                        LoggingService.Instance.LogInfo($"  - Количество полученных: {response["trade_offers_received"].Children.Count()}", account.Username);
+                    }
+                }
 
                 // Обрабатываем отправленные трейды
                 if (allOffers != null && allOffers["response"]["trade_offers_sent"] != null)
@@ -80,17 +98,25 @@ namespace SteamTradeConfirmer.Services
                     
                     foreach (var offer in allOffers["response"]["trade_offers_sent"].Children)
                     {
-                        var tradeOffer = new TradeOffer
+                        var tradeState = offer["trade_offer_state"].AsInteger();
+                        LoggingService.Instance.LogInfo($"🔍 Отправленный трейд {offer["tradeofferid"].AsString()}: статус {tradeState}", account.Username);
+                        
+                        // Показываем только трейды, требующие подтверждения (статус 9 = CreatedNeedsConfirmation)
+                        if (tradeState == 9)
                         {
-                            TradeOfferId = offer["tradeofferid"].AsString() ?? "",
-                            AccountName = account.DisplayName ?? "",
-                            PartnerName = offer["accountid_other"].AsString() ?? "",
-                            ItemsDescription = GetItemsDescription(offer),
-                            CreatedTime = DateTimeOffset.FromUnixTimeSeconds(offer["time_created"].AsLong()).DateTime,
-                            Status = GetStatusDescription(offer["trade_offer_state"].AsInteger())
-                        };
+                            var tradeOffer = new TradeOffer
+                            {
+                                TradeOfferId = offer["tradeofferid"].AsString() ?? "",
+                                AccountName = account.DisplayName ?? "",
+                                PartnerName = offer["accountid_other"].AsString() ?? "",
+                                ItemsDescription = GetItemsDescription(offer),
+                                CreatedTime = DateTimeOffset.FromUnixTimeSeconds(offer["time_created"].AsLong()).DateTime,
+                                Status = GetStatusDescription(tradeState)
+                            };
 
-                        tradeOffers.Add(tradeOffer);
+                            tradeOffers.Add(tradeOffer);
+                            LoggingService.Instance.LogInfo($"✅ Добавлен отправленный трейд {tradeOffer.TradeOfferId} (требует подтверждения)", account.Username);
+                        }
                     }
                 }
 
@@ -102,23 +128,31 @@ namespace SteamTradeConfirmer.Services
                     
                     foreach (var offer in allOffers["response"]["trade_offers_received"].Children)
                     {
-                        var tradeOffer = new TradeOffer
+                        var tradeState = offer["trade_offer_state"].AsInteger();
+                        LoggingService.Instance.LogInfo($"🔍 Полученный трейд {offer["tradeofferid"].AsString()}: статус {tradeState}", account.Username);
+                        
+                        // Показываем только трейды, требующие подтверждения (статус 9 = CreatedNeedsConfirmation)
+                        if (tradeState == 9)
                         {
-                            TradeOfferId = offer["tradeofferid"].AsString() ?? "",
-                            AccountName = account.DisplayName ?? "",
-                            PartnerName = offer["accountid_other"].AsString() ?? "",
-                            ItemsDescription = GetItemsDescription(offer),
-                            CreatedTime = DateTimeOffset.FromUnixTimeSeconds(offer["time_created"].AsLong()).DateTime,
-                            Status = GetStatusDescription(offer["trade_offer_state"].AsInteger())
-                        };
+                            var tradeOffer = new TradeOffer
+                            {
+                                TradeOfferId = offer["tradeofferid"].AsString() ?? "",
+                                AccountName = account.DisplayName ?? "",
+                                PartnerName = offer["accountid_other"].AsString() ?? "",
+                                ItemsDescription = GetItemsDescription(offer),
+                                CreatedTime = DateTimeOffset.FromUnixTimeSeconds(offer["time_created"].AsLong()).DateTime,
+                                Status = GetStatusDescription(tradeState)
+                            };
 
-                        tradeOffers.Add(tradeOffer);
+                            tradeOffers.Add(tradeOffer);
+                            LoggingService.Instance.LogInfo($"✅ Добавлен полученный трейд {tradeOffer.TradeOfferId} (требует подтверждения)", account.Username);
+                        }
                     }
                 }
 
                 if (tradeOffers.Count == 0)
                 {
-                    LoggingService.Instance.LogWarning($"⚠️ Нет трейдов, ожидающих мобильного подтверждения", account.Username);
+                    LoggingService.Instance.LogWarning($"⚠️ Нет трейдов со статусом 'CreatedNeedsConfirmation' (9) - ожидающих мобильного подтверждения", account.Username);
                 }
 
                 LoggingService.Instance.LogInfo($"📋 Итого обработано {tradeOffers.Count} трейдов", account.Username);

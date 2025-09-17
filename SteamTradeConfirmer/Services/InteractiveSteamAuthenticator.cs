@@ -64,15 +64,26 @@ namespace SteamTradeConfirmer.Services
                     return await RequestCodeFromUserAsync("SharedSecret отсутствует в .maFile. Введите код вручную:");
                 }
                 
+                LoggingService.Instance.LogInfo($"🔍 SharedSecret найден: {maFile.SharedSecret.Substring(0, Math.Min(10, maFile.SharedSecret.Length))}...", _account.Username);
+                
                 // Генерируем TOTP код
-                var totp = new TOTPGenerator(maFile.SharedSecret);
-                var code = totp.GenerateCode();
+                try
+                {
+                    var totp = new TOTPGenerator(maFile.SharedSecret);
+                    var code = totp.GenerateCode();
                 
-                LoggingService.Instance.LogInfo($"✅ TOTP код сгенерирован успешно: {code}", _account.Username);
-                // Обновляем статус аккаунта
-                _account.Status = $"Сгенерирован код: {code}";
-                
-                return code;
+                    LoggingService.Instance.LogInfo($"✅ TOTP код сгенерирован успешно: {code}", _account.Username);
+                    // Обновляем статус аккаунта
+                    _account.Status = $"Сгенерирован код: {code}";
+                    
+                    return code;
+                }
+                catch (Exception totpEx)
+                {
+                    LoggingService.Instance.LogError($"💥 ОШИБКА генерации TOTP кода: {totpEx.Message}", _account.Username, totpEx);
+                    LoggingService.Instance.LogError($"🔍 SharedSecret содержит недопустимые символы для Base32", _account.Username);
+                    return await RequestCodeFromUserAsync($"Ошибка генерации TOTP кода. Введите код вручную: {totpEx.Message}");
+                }
             }
             catch (Exception ex)
             {
