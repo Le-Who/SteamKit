@@ -59,24 +59,26 @@ namespace SteamTradeConfirmer.Services
                 
                 LoggingService.Instance.LogInfo($"🌐 Вызов Steam Web API GetTradeOffers для {account.Username}", account.Username);
                 
-                var sentOffers = webApi.Call("GetTradeOffers", 1, new Dictionary<string, object?>
+                // Запрашиваем ВСЕ трейды, ожидающие мобильного подтверждения
+                var allOffers = webApi.Call("GetTradeOffers", 1, new Dictionary<string, object?>
                 {
-                    ["get_sent_offers"] = "1",
-                    ["get_received_offers"] = "0",
-                    ["get_descriptions"] = "1",
-                    ["active_only"] = "1",
-                    ["historical_only"] = "0",
+                    ["get_sent_offers"] = "1",      // Отправленные трейды
+                    ["get_received_offers"] = "1",  // Полученные трейды
+                    ["get_descriptions"] = "1",     // Описания предметов
+                    ["active_only"] = "1",          // Только активные
+                    ["historical_only"] = "0",      // Не исторические
                     ["time_historical_cutoff"] = "0"
                 });
 
                 LoggingService.Instance.LogInfo($"🌐 Получен ответ от Steam Web API", account.Username);
 
-                if (sentOffers != null && sentOffers["response"]["trade_offers_sent"] != null)
+                // Обрабатываем отправленные трейды
+                if (allOffers != null && allOffers["response"]["trade_offers_sent"] != null)
                 {
-                    var sentCount = sentOffers["response"]["trade_offers_sent"].Children.Count();
+                    var sentCount = allOffers["response"]["trade_offers_sent"].Children.Count();
                     LoggingService.Instance.LogInfo($"📤 Найдено {sentCount} отправленных трейдов", account.Username);
                     
-                    foreach (var offer in sentOffers["response"]["trade_offers_sent"].Children)
+                    foreach (var offer in allOffers["response"]["trade_offers_sent"].Children)
                     {
                         var tradeOffer = new TradeOffer
                         {
@@ -91,9 +93,32 @@ namespace SteamTradeConfirmer.Services
                         tradeOffers.Add(tradeOffer);
                     }
                 }
-                else
+
+                // Обрабатываем полученные трейды
+                if (allOffers != null && allOffers["response"]["trade_offers_received"] != null)
                 {
-                    LoggingService.Instance.LogWarning($"⚠️ Нет отправленных трейдов или ошибка в ответе API", account.Username);
+                    var receivedCount = allOffers["response"]["trade_offers_received"].Children.Count();
+                    LoggingService.Instance.LogInfo($"📥 Найдено {receivedCount} полученных трейдов", account.Username);
+                    
+                    foreach (var offer in allOffers["response"]["trade_offers_received"].Children)
+                    {
+                        var tradeOffer = new TradeOffer
+                        {
+                            TradeOfferId = offer["tradeofferid"].AsString() ?? "",
+                            AccountName = account.DisplayName ?? "",
+                            PartnerName = offer["accountid_other"].AsString() ?? "",
+                            ItemsDescription = GetItemsDescription(offer),
+                            CreatedTime = DateTimeOffset.FromUnixTimeSeconds(offer["time_created"].AsLong()).DateTime,
+                            Status = GetStatusDescription(offer["trade_offer_state"].AsInteger())
+                        };
+
+                        tradeOffers.Add(tradeOffer);
+                    }
+                }
+
+                if (tradeOffers.Count == 0)
+                {
+                    LoggingService.Instance.LogWarning($"⚠️ Нет трейдов, ожидающих мобильного подтверждения", account.Username);
                 }
 
                 LoggingService.Instance.LogInfo($"📋 Итого обработано {tradeOffers.Count} трейдов", account.Username);

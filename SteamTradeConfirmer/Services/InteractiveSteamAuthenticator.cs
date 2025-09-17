@@ -147,7 +147,7 @@ namespace SteamTradeConfirmer.Services
         public string DeviceId { get; set; } = string.Empty;
         
         [System.Text.Json.Serialization.JsonPropertyName("fully_enrolled")]
-        public string FullyEnrolled { get; set; } = string.Empty;
+        public object? FullyEnrolled { get; set; }
         
         [System.Text.Json.Serialization.JsonPropertyName("session_data")]
         public string SessionData { get; set; } = string.Empty;
