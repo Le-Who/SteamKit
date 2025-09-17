@@ -59,7 +59,7 @@ namespace SteamTradeConfirmer.Services
                 // Обновляем статус аккаунта
                 _account.Status = $"Сгенерирован код: {code}";
                 
-                return code;
+                return Task.FromResult(code);
             }
             catch (Exception ex)
             {
@@ -71,7 +71,7 @@ namespace SteamTradeConfirmer.Services
         public Task<string> GetEmailCodeAsync(string email, bool previousCodeWasIncorrect)
         {
             // Для данного приложения не поддерживаем email аутентификацию
-            throw new NotSupportedException("Email аутентификация не поддерживается");
+            return Task.FromException<string>(new NotSupportedException("Email аутентификация не поддерживается"));
         }
 
         public Task<bool> AcceptDeviceConfirmationAsync()

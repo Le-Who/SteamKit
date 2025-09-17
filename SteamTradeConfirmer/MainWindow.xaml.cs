@@ -90,9 +90,9 @@ namespace SteamTradeConfirmer
             RemoveAccountButton.IsEnabled = AccountsListBox.SelectedItem != null;
         }
 
-        private async void RefreshButton_Click(object sender, RoutedEventArgs e)
+        private void RefreshButton_Click(object sender, RoutedEventArgs e)
         {
-            await RefreshTradeOffers();
+            RefreshTradeOffers();
         }
 
         private Task RefreshTradeOffers()
