@@ -56,6 +56,14 @@ namespace SteamTradeConfirmer.Services
                 }
 
                 LoggingService.Instance.LogInfo("🔐 Генерируем TOTP код из .maFile...", _account.Username);
+                
+                // Проверяем наличие SharedSecret
+                if (string.IsNullOrEmpty(maFile.SharedSecret))
+                {
+                    LoggingService.Instance.LogError("❌ SharedSecret отсутствует в .maFile", _account.Username);
+                    return await RequestCodeFromUserAsync("SharedSecret отсутствует в .maFile. Введите код вручную:");
+                }
+                
                 // Генерируем TOTP код
                 var totp = new TOTPGenerator(maFile.SharedSecret);
                 var code = totp.GenerateCode();
@@ -88,19 +96,18 @@ namespace SteamTradeConfirmer.Services
 
         private async Task<string> RequestCodeFromUserAsync(string message)
         {
-            return await Task.Run(() =>
+            string result = string.Empty;
+            
+            // Создаем и показываем диалог в UI потоке
+            await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
             {
                 var dialog = new ConfirmationDialog(_account.Username, message);
                 dialog.Title = "Подтверждение Steam Guard";
-                
-                // Показываем диалог в UI потоке
-                System.Windows.Application.Current.Dispatcher.Invoke(() =>
-                {
-                    dialog.ShowDialog();
-                });
-
-                return dialog.ConfirmationCode;
+                dialog.ShowDialog();
+                result = dialog.ConfirmationCode;
             });
+
+            return result;
         }
     }
 
