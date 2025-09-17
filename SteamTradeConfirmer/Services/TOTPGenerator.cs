@@ -7,6 +7,7 @@ namespace SteamTradeConfirmer.Services
     public class TOTPGenerator
     {
         private readonly byte[] _secret;
+        private static readonly string _chars = "23456789BCDFGHJKMNPQRTVWXY";
 
         public TOTPGenerator(string base32Secret)
         {
@@ -36,7 +37,15 @@ namespace SteamTradeConfirmer.Services
                       ((hash[offset + 2] & 0xFF) << 8) |
                       (hash[offset + 3] & 0xFF);
 
-            return (code % 1000000).ToString("D6");
+            // Steam использует 5-символьные коды с алфавитом 23456789BCDFGHJKMNPQRTVWXY
+            var steamCode = "";
+            for (int i = 0; i < 5; i++)
+            {
+                steamCode += _chars[(int)(code % _chars.Length)];
+                code /= _chars.Length;
+            }
+
+            return steamCode;
         }
 
         private static byte[] Base32Decode(string input)
