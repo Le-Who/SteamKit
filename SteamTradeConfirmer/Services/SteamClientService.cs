@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using SteamKit2;
 using SteamKit2.Authentication;
+using SteamKit2.Internal;
 using SteamTradeConfirmer.Models;
 
 namespace SteamTradeConfirmer.Services
@@ -61,11 +62,14 @@ namespace SteamTradeConfirmer.Services
 
                 LoggingService.Instance.LogInfo("SteamClient создан, подписываемся на события", account.Username);
 
-                // Подписываемся на события
-                manager.Subscribe<SteamClient.ConnectedCallback>(callback => OnConnected(callback, account));
-                manager.Subscribe<SteamClient.DisconnectedCallback>(callback => OnDisconnected(callback, account));
-                manager.Subscribe<SteamUser.LoggedOnCallback>(callback => OnLoggedOn(callback, account));
-                manager.Subscribe<SteamUser.LoggedOffCallback>(callback => OnLoggedOff(callback, account));
+                        // Подписываемся на события
+                        manager.Subscribe<SteamClient.ConnectedCallback>(callback => OnConnected(callback, account));
+                        manager.Subscribe<SteamClient.DisconnectedCallback>(callback => OnDisconnected(callback, account));
+                        manager.Subscribe<SteamUser.LoggedOnCallback>(callback => OnLoggedOn(callback, account));
+                        manager.Subscribe<SteamUser.LoggedOffCallback>(callback => OnLoggedOff(callback, account));
+                        
+                        // Подписываемся на уведомления Steam (временно отключено)
+                        // manager.Subscribe<SteamUnifiedMessages.ServiceMethodNotification<CSteamNotification_NotificationsReceived_Notification>>(callback => OnNotificationsReceived(callback, account));
                 LoggingService.Instance.LogInfo("Подписка на события завершена", account.Username);
 
                 // Запускаем callback loop в отдельном потоке ПЕРЕД подключением
@@ -223,6 +227,10 @@ namespace SteamTradeConfirmer.Services
                 account.IsAuthenticated = true;
                 account.DisplayName = account.Username; // PersonaName будет получен позже через SteamFriends
                 account.ErrorMessage = string.Empty;
+                
+                // Запрашиваем уведомления Steam после успешного входа (временно отключено)
+                LoggingService.Instance.LogInfo("🔔 Уведомления Steam временно отключены", account.Username);
+                
                 AccountAuthenticated?.Invoke(this, account);
             }
             else if (callback.Result == EResult.AccountLogonDenied)
@@ -268,6 +276,8 @@ namespace SteamTradeConfirmer.Services
             account.Status = "Выход выполнен";
             account.IsAuthenticated = false;
         }
+
+        // Временно отключено - OnNotificationsReceived
 
 
 

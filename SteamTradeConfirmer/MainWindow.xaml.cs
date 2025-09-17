@@ -90,12 +90,12 @@ namespace SteamTradeConfirmer
             RemoveAccountButton.IsEnabled = AccountsListBox.SelectedItem != null;
         }
 
-        private void RefreshButton_Click(object sender, RoutedEventArgs e)
+        private async void RefreshButton_Click(object sender, RoutedEventArgs e)
         {
-            RefreshTradeOffers();
+            await RefreshTradeOffers();
         }
 
-        private Task RefreshTradeOffers()
+        private async Task RefreshTradeOffers()
         {
             UpdateStatus("Обновление списка обменов...");
             _tradeOffers.Clear();
@@ -108,7 +108,7 @@ namespace SteamTradeConfirmer
                 try
                 {
                     LoggingService.Instance.LogInfo($"📋 Получение трейдов для аккаунта: {account.Username}", account.Username);
-                    var offers = _tradeOfferService.GetTradeOffers(account);
+                            var offers = await _tradeOfferService.GetTradeOffersAsync(account);
                     LoggingService.Instance.LogInfo($"📋 Получено {offers.Count} трейдов для {account.Username}", account.Username);
                     
                     foreach (var offer in offers)
@@ -125,7 +125,6 @@ namespace SteamTradeConfirmer
 
             LoggingService.Instance.LogInfo($"✅ Загружено {_tradeOffers.Count} обменов всего");
             UpdateStatus($"Загружено {_tradeOffers.Count} обменов");
-            return Task.CompletedTask;
         }
 
         private async void ConfirmTradeButton_Click(object sender, RoutedEventArgs e)
