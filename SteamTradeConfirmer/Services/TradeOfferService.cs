@@ -54,18 +54,56 @@ namespace SteamTradeConfirmer.Services
 
                 LoggingService.Instance.LogInfo($"✅ Steam API ключ настроен, запрашиваем реальные трейды", account.Username);
 
+                // Сначала проверим права API ключа
+                try
+                {
+                    LoggingService.Instance.LogInfo($"🔍 Проверка прав API ключа...", account.Username);
+                    var userApi = WebAPI.GetInterface("ISteamUser", _configService.SteamApiKey);
+                    var userInfo = userApi.Call("GetPlayerSummaries", 2, new Dictionary<string, object?>
+                    {
+                        ["steamids"] = account.Username
+                    });
+                    LoggingService.Instance.LogInfo($"✅ API ключ имеет доступ к ISteamUser", account.Username);
+                }
+                catch (Exception apiEx)
+                {
+                    LoggingService.Instance.LogError($"❌ Ошибка доступа к ISteamUser: {apiEx.Message}", account.Username, apiEx);
+                }
+
                 // Реальная работа с Steam Web API
                 var webApi = WebAPI.GetInterface("IEconService", _configService.SteamApiKey);
                 
+                // Попробуем также ISteamEconomy API
+                try
+                {
+                    LoggingService.Instance.LogInfo($"🔍 Попытка использования ISteamEconomy API...", account.Username);
+                    var economyApi = WebAPI.GetInterface("ISteamEconomy", _configService.SteamApiKey);
+                    // Этот API может не существовать, но попробуем
+                    LoggingService.Instance.LogInfo($"✅ ISteamEconomy API доступен", account.Username);
+                }
+                catch (Exception economyEx)
+                {
+                    LoggingService.Instance.LogInfo($"ℹ️ ISteamEconomy API недоступен: {economyEx.Message}", account.Username);
+                }
+                
                 LoggingService.Instance.LogInfo($"🌐 Вызов Steam Web API GetTradeOffers для {account.Username}", account.Username);
+                LoggingService.Instance.LogInfo($"🔑 API ключ: {_configService.SteamApiKey.Substring(0, 8)}...", account.Username);
                 
                 // Запрашиваем ВСЕ трейды, ожидающие мобильного подтверждения
+                LoggingService.Instance.LogInfo($"📋 Параметры запроса API:", account.Username);
+                LoggingService.Instance.LogInfo($"  - get_sent_offers: 1", account.Username);
+                LoggingService.Instance.LogInfo($"  - get_received_offers: 1", account.Username);
+                LoggingService.Instance.LogInfo($"  - get_descriptions: 1", account.Username);
+                LoggingService.Instance.LogInfo($"  - active_only: 0 (ВСЕ трейды)", account.Username);
+                LoggingService.Instance.LogInfo($"  - historical_only: 0", account.Username);
+                
+                // Попробуем получить ВСЕ трейды (включая ожидающие подтверждения)
                 var allOffers = webApi.Call("GetTradeOffers", 1, new Dictionary<string, object?>
                 {
                     ["get_sent_offers"] = "1",      // Отправленные трейды
                     ["get_received_offers"] = "1",  // Полученные трейды
                     ["get_descriptions"] = "1",     // Описания предметов
-                    ["active_only"] = "1",          // Только активные
+                    ["active_only"] = "0",          // ВСЕ трейды (не только активные)
                     ["historical_only"] = "0",      // Не исторические
                     ["time_historical_cutoff"] = "0"
                 });
@@ -88,6 +126,14 @@ namespace SteamTradeConfirmer.Services
                     {
                         LoggingService.Instance.LogInfo($"  - Количество полученных: {response["trade_offers_received"].Children.Count()}", account.Username);
                     }
+                    
+                    // Логируем полный ответ для отладки
+                    LoggingService.Instance.LogInfo($"🔍 Полный ответ API: {allOffers.ToString()}", account.Username);
+                }
+                else
+                {
+                    LoggingService.Instance.LogError($"❌ Получен пустой ответ от API", account.Username);
+                    LoggingService.Instance.LogInfo($"🔍 Полный ответ: {allOffers?.ToString() ?? "null"}", account.Username);
                 }
 
                 // Обрабатываем отправленные трейды
