@@ -170,7 +170,7 @@ namespace SteamTradeConfirmer.Services
                 {
                     Username = account.Username,
                     Password = account.Password,
-                    IsPersistentSession = false,
+                    IsPersistentSession = true, // Включаем долгосрочную сессию
                     Authenticator = new InteractiveSteamAuthenticator(account)
                 });
 
@@ -188,7 +188,7 @@ namespace SteamTradeConfirmer.Services
                 {
                     Username = pollResponse.AccountName,
                     AccessToken = pollResponse.RefreshToken,
-                    ShouldRememberPassword = false
+                    ShouldRememberPassword = true // Включаем сохранение пароля для долгосрочной сессии
                 });
                 
                 LoggingService.Instance.LogInfo("✅ Команда входа в Steam отправлена успешно", account.Username);

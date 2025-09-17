@@ -113,18 +113,43 @@ namespace SteamTradeConfirmer.Services
 
     public class MaFile
     {
+        [System.Text.Json.Serialization.JsonPropertyName("shared_secret")]
         public string SharedSecret { get; set; } = string.Empty;
+        
+        [System.Text.Json.Serialization.JsonPropertyName("identity_secret")]
         public string IdentitySecret { get; set; } = string.Empty;
+        
+        [System.Text.Json.Serialization.JsonPropertyName("revocation_code")]
         public string RevocationCode { get; set; } = string.Empty;
+        
+        [System.Text.Json.Serialization.JsonPropertyName("uri")]
         public string Uri { get; set; } = string.Empty;
+        
+        [System.Text.Json.Serialization.JsonPropertyName("server_time")]
         public string ServerTime { get; set; } = string.Empty;
+        
+        [System.Text.Json.Serialization.JsonPropertyName("account_name")]
         public string AccountName { get; set; } = string.Empty;
+        
+        [System.Text.Json.Serialization.JsonPropertyName("token_gid")]
         public string TokenGid { get; set; } = string.Empty;
+        
+        [System.Text.Json.Serialization.JsonPropertyName("identity")]
         public string Identity { get; set; } = string.Empty;
+        
+        [System.Text.Json.Serialization.JsonPropertyName("secret_1")]
         public string Secret1 { get; set; } = string.Empty;
+        
+        [System.Text.Json.Serialization.JsonPropertyName("status")]
         public int Status { get; set; }
+        
+        [System.Text.Json.Serialization.JsonPropertyName("device_id")]
         public string DeviceId { get; set; } = string.Empty;
+        
+        [System.Text.Json.Serialization.JsonPropertyName("fully_enrolled")]
         public string FullyEnrolled { get; set; } = string.Empty;
+        
+        [System.Text.Json.Serialization.JsonPropertyName("session_data")]
         public string SessionData { get; set; } = string.Empty;
     }
 }

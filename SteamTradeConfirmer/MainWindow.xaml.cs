@@ -101,12 +101,16 @@ namespace SteamTradeConfirmer
             _tradeOffers.Clear();
 
             var authenticatedAccounts = _accounts.Where(a => a.IsAuthenticated).ToList();
+            LoggingService.Instance.LogInfo($"🔄 Обновление трейдов для {authenticatedAccounts.Count} аутентифицированных аккаунтов");
             
             foreach (var account in authenticatedAccounts)
             {
                 try
                 {
+                    LoggingService.Instance.LogInfo($"📋 Получение трейдов для аккаунта: {account.Username}", account.Username);
                     var offers = _tradeOfferService.GetTradeOffers(account);
+                    LoggingService.Instance.LogInfo($"📋 Получено {offers.Count} трейдов для {account.Username}", account.Username);
+                    
                     foreach (var offer in offers)
                     {
                         _tradeOffers.Add(offer);
@@ -114,10 +118,12 @@ namespace SteamTradeConfirmer
                 }
                 catch (Exception ex)
                 {
+                    LoggingService.Instance.LogError($"❌ Ошибка получения обменов для {account.Username}: {ex.Message}", account.Username, ex);
                     UpdateStatus($"Ошибка получения обменов для {account.Username}: {ex.Message}");
                 }
             }
 
+            LoggingService.Instance.LogInfo($"✅ Загружено {_tradeOffers.Count} обменов всего");
             UpdateStatus($"Загружено {_tradeOffers.Count} обменов");
             return Task.CompletedTask;
         }
@@ -189,7 +195,7 @@ namespace SteamTradeConfirmer
             {
                 UpdateStatus($"Аккаунт {account.Username} успешно подключен");
                 // Автоматически обновляем список обменов при подключении нового аккаунта
-                _ = RefreshTradeOffers();
+                RefreshTradeOffers();
             });
         }
 
