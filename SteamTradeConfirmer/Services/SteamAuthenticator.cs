@@ -37,7 +37,7 @@ namespace SteamTradeConfirmer.Services
             }
         }
 
-        public async Task<string> GetDeviceCodeAsync(bool previousCodeWasIncorrect)
+        public Task<string> GetDeviceCodeAsync(bool previousCodeWasIncorrect)
         {
             if (string.IsNullOrEmpty(_maFileContent))
             {
@@ -68,16 +68,16 @@ namespace SteamTradeConfirmer.Services
             }
         }
 
-        public async Task<string> GetEmailCodeAsync(string email, bool previousCodeWasIncorrect)
+        public Task<string> GetEmailCodeAsync(string email, bool previousCodeWasIncorrect)
         {
             // Для данного приложения не поддерживаем email аутентификацию
             throw new NotSupportedException("Email аутентификация не поддерживается");
         }
 
-        public async Task<bool> AcceptDeviceConfirmationAsync()
+        public Task<bool> AcceptDeviceConfirmationAsync()
         {
             // Не поддерживаем подтверждение через мобильное приложение
-            return false;
+            return Task.FromResult(false);
         }
     }
 

@@ -34,7 +34,7 @@ namespace SteamTradeConfirmer.Services
             }
         }
 
-        public async Task<string> GetDeviceCodeAsync(bool previousCodeWasIncorrect)
+        public Task<string> GetDeviceCodeAsync(bool previousCodeWasIncorrect)
         {
             LoggingService.Instance.LogInfo($"🔑 === ЗАПРОС КОДА УСТРОЙСТВА === (предыдущий код был неверным: {previousCodeWasIncorrect})", _account.Username);
             
@@ -70,20 +70,20 @@ namespace SteamTradeConfirmer.Services
             {
                 LoggingService.Instance.LogError($"💥 ОШИБКА генерации TOTP кода: {ex.Message}", _account.Username, ex);
                 _account.ErrorMessage = $"Ошибка генерации кода: {ex.Message}";
-                return await RequestCodeFromUserAsync($"Ошибка генерации кода. Введите код вручную: {ex.Message}");
+                return RequestCodeFromUserAsync($"Ошибка генерации кода. Введите код вручную: {ex.Message}").Result;
             }
         }
 
-        public async Task<string> GetEmailCodeAsync(string email, bool previousCodeWasIncorrect)
+        public Task<string> GetEmailCodeAsync(string email, bool previousCodeWasIncorrect)
         {
             LoggingService.Instance.LogInfo($"Запрос email кода для {email} (предыдущий код был неверным: {previousCodeWasIncorrect})", _account.Username);
-            return await RequestCodeFromUserAsync($"Введите код подтверждения, отправленный на {email}:");
+            return RequestCodeFromUserAsync($"Введите код подтверждения, отправленный на {email}:");
         }
 
-        public async Task<bool> AcceptDeviceConfirmationAsync()
+        public Task<bool> AcceptDeviceConfirmationAsync()
         {
             // Не поддерживаем подтверждение через мобильное приложение
-            return false;
+            return Task.FromResult(false);
         }
 
         private async Task<string> RequestCodeFromUserAsync(string message)

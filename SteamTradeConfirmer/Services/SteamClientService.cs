@@ -73,6 +73,15 @@ namespace SteamTradeConfirmer.Services
                 var steamUser = steamClient.GetHandler<SteamUser>();
                 LoggingService.Instance.LogInfo("CallbackManager и SteamUser инициализированы", account.Username);
 
+                if (steamUser == null)
+                {
+                    LoggingService.Instance.LogError("Не удалось получить SteamUser handler", account.Username);
+                    account.Status = "Ошибка инициализации";
+                    account.ErrorMessage = "Не удалось получить SteamUser handler";
+                    AuthenticationFailed?.Invoke(this, (account, "Ошибка инициализации SteamUser"));
+                    return false;
+                }
+
                 _clients[account] = steamClient;
                 _managers[account] = manager;
                 _steamUsers[account] = steamUser;
@@ -161,6 +170,12 @@ namespace SteamTradeConfirmer.Services
                         var tcpClient = new SteamClient(tcpConfig);
                         var tcpManager = new CallbackManager(tcpClient);
                         var tcpSteamUser = tcpClient.GetHandler<SteamUser>();
+                        
+                        if (tcpSteamUser == null)
+                        {
+                            LoggingService.Instance.LogError("Не удалось получить TCP SteamUser handler", account.Username);
+                            throw new Exception("Не удалось получить TCP SteamUser handler");
+                        }
                         
                         _clients[account] = tcpClient;
                         _managers[account] = tcpManager;
@@ -328,8 +343,6 @@ namespace SteamTradeConfirmer.Services
             {
                 LoggingService.Instance.LogInfo($"✅ Успешный вход в Steam: {account.Username}", account.Username);
                 LoggingService.Instance.LogInfo($"Steam ID: {callback.ClientSteamID}", account.Username);
-                LoggingService.Instance.LogInfo($"Out of Game Heartbeat Seconds: {callback.OutOfGameHeartbeatSeconds}", account.Username);
-                LoggingService.Instance.LogInfo($"In Game Heartbeat Seconds: {callback.InGameHeartbeatSeconds}", account.Username);
                 
                 account.Status = "Подключен";
                 account.IsAuthenticated = true;

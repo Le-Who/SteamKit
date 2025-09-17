@@ -95,7 +95,7 @@ namespace SteamTradeConfirmer
             await RefreshTradeOffers();
         }
 
-        private async Task RefreshTradeOffers()
+        private Task RefreshTradeOffers()
         {
             UpdateStatus("Обновление списка обменов...");
             _tradeOffers.Clear();
@@ -119,6 +119,7 @@ namespace SteamTradeConfirmer
             }
 
             UpdateStatus($"Загружено {_tradeOffers.Count} обменов");
+            return Task.CompletedTask;
         }
 
         private async void ConfirmTradeButton_Click(object sender, RoutedEventArgs e)

@@ -48,7 +48,7 @@ namespace SteamTradeConfirmer.Services
                 // Реальная работа с Steam Web API
                 var webApi = WebAPI.GetInterface("IEconService", _configService.SteamApiKey);
                 
-                var sentOffers = webApi.Call("GetTradeOffers", 1, new Dictionary<string, object>
+                var sentOffers = webApi.Call("GetTradeOffers", 1, new Dictionary<string, object?>
                 {
                     ["get_sent_offers"] = "1",
                     ["get_received_offers"] = "0",
@@ -64,9 +64,9 @@ namespace SteamTradeConfirmer.Services
                     {
                         var tradeOffer = new TradeOffer
                         {
-                            TradeOfferId = offer["tradeofferid"].AsString(),
-                            AccountName = account.DisplayName,
-                            PartnerName = offer["accountid_other"].AsString(),
+                            TradeOfferId = offer["tradeofferid"].AsString() ?? "",
+                            AccountName = account.DisplayName ?? "",
+                            PartnerName = offer["accountid_other"].AsString() ?? "",
                             ItemsDescription = GetItemsDescription(offer),
                             CreatedTime = DateTimeOffset.FromUnixTimeSeconds(offer["time_created"].AsLong()).DateTime,
                             Status = GetStatusDescription(offer["trade_offer_state"].AsInteger())
@@ -103,7 +103,7 @@ namespace SteamTradeConfirmer.Services
                 // Реальная работа с Steam Web API
                 var webApi = WebAPI.GetInterface("IEconService", _configService.SteamApiKey);
                 
-                var result = webApi.Call("ConfirmTradeOffer", 1, new Dictionary<string, object>
+                var result = webApi.Call("ConfirmTradeOffer", 1, new Dictionary<string, object?>
                 {
                     ["tradeofferid"] = tradeOfferId
                 });
@@ -136,7 +136,7 @@ namespace SteamTradeConfirmer.Services
                 // Реальная работа с Steam Web API
                 var webApi = WebAPI.GetInterface("IEconService", _configService.SteamApiKey);
                 
-                var result = webApi.Call("CancelTradeOffer", 1, new Dictionary<string, object>
+                var result = webApi.Call("CancelTradeOffer", 1, new Dictionary<string, object?>
                 {
                     ["tradeofferid"] = tradeOfferId
                 });
