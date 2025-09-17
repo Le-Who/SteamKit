@@ -126,7 +126,7 @@ namespace SteamTradeConfirmer.Services
         public string Uri { get; set; } = string.Empty;
         
         [System.Text.Json.Serialization.JsonPropertyName("server_time")]
-        public string ServerTime { get; set; } = string.Empty;
+        public object? ServerTime { get; set; }
         
         [System.Text.Json.Serialization.JsonPropertyName("account_name")]
         public string AccountName { get; set; } = string.Empty;

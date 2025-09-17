@@ -24,13 +24,19 @@ namespace SteamTradeConfirmer.Services
 
             try
             {
+                LoggingService.Instance.LogInfo($"🔍 Начало получения трейдов для {account.Username}", account.Username);
+                
                 if (!account.IsAuthenticated)
                 {
+                    LoggingService.Instance.LogWarning($"⚠️ Аккаунт {account.Username} не аутентифицирован", account.Username);
                     return tradeOffers;
                 }
 
+                LoggingService.Instance.LogInfo($"✅ Аккаунт {account.Username} аутентифицирован", account.Username);
+
                 if (!_configService.IsApiKeyConfigured())
                 {
+                    LoggingService.Instance.LogWarning($"⚠️ Steam API ключ не настроен, возвращаем тестовые данные", account.Username);
                     // Возвращаем тестовые данные, если API ключ не настроен
                     var testOffer = new TradeOffer
                     {
@@ -42,11 +48,16 @@ namespace SteamTradeConfirmer.Services
                         Status = "Активен (тестовый режим)"
                     };
                     tradeOffers.Add(testOffer);
+                    LoggingService.Instance.LogInfo($"📋 Возвращено {tradeOffers.Count} тестовых трейдов", account.Username);
                     return tradeOffers;
                 }
 
+                LoggingService.Instance.LogInfo($"✅ Steam API ключ настроен, запрашиваем реальные трейды", account.Username);
+
                 // Реальная работа с Steam Web API
                 var webApi = WebAPI.GetInterface("IEconService", _configService.SteamApiKey);
+                
+                LoggingService.Instance.LogInfo($"🌐 Вызов Steam Web API GetTradeOffers для {account.Username}", account.Username);
                 
                 var sentOffers = webApi.Call("GetTradeOffers", 1, new Dictionary<string, object?>
                 {
@@ -58,8 +69,13 @@ namespace SteamTradeConfirmer.Services
                     ["time_historical_cutoff"] = "0"
                 });
 
+                LoggingService.Instance.LogInfo($"🌐 Получен ответ от Steam Web API", account.Username);
+
                 if (sentOffers != null && sentOffers["response"]["trade_offers_sent"] != null)
                 {
+                    var sentCount = sentOffers["response"]["trade_offers_sent"].Children.Count();
+                    LoggingService.Instance.LogInfo($"📤 Найдено {sentCount} отправленных трейдов", account.Username);
+                    
                     foreach (var offer in sentOffers["response"]["trade_offers_sent"].Children)
                     {
                         var tradeOffer = new TradeOffer
@@ -75,9 +91,16 @@ namespace SteamTradeConfirmer.Services
                         tradeOffers.Add(tradeOffer);
                     }
                 }
+                else
+                {
+                    LoggingService.Instance.LogWarning($"⚠️ Нет отправленных трейдов или ошибка в ответе API", account.Username);
+                }
+
+                LoggingService.Instance.LogInfo($"📋 Итого обработано {tradeOffers.Count} трейдов", account.Username);
             }
             catch (Exception ex)
             {
+                LoggingService.Instance.LogError($"❌ Ошибка получения обменов: {ex.Message}", account.Username, ex);
                 account.ErrorMessage = $"Ошибка получения обменов: {ex.Message}";
             }
 
