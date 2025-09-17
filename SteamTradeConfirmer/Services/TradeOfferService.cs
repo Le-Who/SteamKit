@@ -97,16 +97,74 @@ namespace SteamTradeConfirmer.Services
                 LoggingService.Instance.LogInfo($"  - active_only: 0 (ВСЕ трейды)", account.Username);
                 LoggingService.Instance.LogInfo($"  - historical_only: 0", account.Username);
                 
-                // Попробуем получить ВСЕ трейды (включая ожидающие подтверждения)
-                var allOffers = webApi.Call("GetTradeOffers", 1, new Dictionary<string, object?>
+                // Попробуем несколько подходов к получению трейдов
+                KeyValue? allOffers = null;
+                
+                // Подход 1: Без параметра active_only (может быть проблема)
+                try
                 {
-                    ["get_sent_offers"] = "1",      // Отправленные трейды
-                    ["get_received_offers"] = "1",  // Полученные трейды
-                    ["get_descriptions"] = "1",     // Описания предметов
-                    ["active_only"] = "0",          // ВСЕ трейды (не только активные)
-                    ["historical_only"] = "0",      // Не исторические
-                    ["time_historical_cutoff"] = "0"
-                });
+                    LoggingService.Instance.LogInfo($"🔍 Подход 1: Без параметра active_only", account.Username);
+                    allOffers = webApi.Call("GetTradeOffers", 1, new Dictionary<string, object?>
+                    {
+                        ["get_sent_offers"] = "1",
+                        ["get_received_offers"] = "1",
+                        ["get_descriptions"] = "1"
+                    });
+                    
+                    if (allOffers != null && allOffers["response"] != null)
+                    {
+                        var sentCount = allOffers["response"]["trade_offers_sent"]?.Children.Count() ?? 0;
+                        var receivedCount = allOffers["response"]["trade_offers_received"]?.Children.Count() ?? 0;
+                        LoggingService.Instance.LogInfo($"✅ Подход 1: {sentCount} отправленных, {receivedCount} полученных", account.Username);
+                        
+                        if (sentCount > 0 || receivedCount > 0)
+                        {
+                            LoggingService.Instance.LogInfo($"🎉 Подход 1 успешен! Найдены трейды", account.Username);
+                        }
+                    }
+                }
+                catch (Exception ex1)
+                {
+                    LoggingService.Instance.LogError($"❌ Подход 1 failed: {ex1.Message}", account.Username, ex1);
+                }
+                
+                // Подход 2: С active_only = "0" (текущий)
+                if (allOffers == null || (allOffers["response"]["trade_offers_sent"]?.Children.Count() ?? 0) == 0)
+                {
+                    try
+                    {
+                        LoggingService.Instance.LogInfo($"🔍 Подход 2: С active_only = 0", account.Username);
+                        allOffers = webApi.Call("GetTradeOffers", 1, new Dictionary<string, object?>
+                        {
+                            ["get_sent_offers"] = "1",
+                            ["get_received_offers"] = "1",
+                            ["get_descriptions"] = "1",
+                            ["active_only"] = "0"
+                        });
+                    }
+                    catch (Exception ex2)
+                    {
+                        LoggingService.Instance.LogError($"❌ Подход 2 failed: {ex2.Message}", account.Username, ex2);
+                    }
+                }
+                
+                // Подход 3: Попробуем получить только отправленные
+                if (allOffers == null || (allOffers["response"]["trade_offers_sent"]?.Children.Count() ?? 0) == 0)
+                {
+                    try
+                    {
+                        LoggingService.Instance.LogInfo($"🔍 Подход 3: Только отправленные трейды", account.Username);
+                        allOffers = webApi.Call("GetTradeOffers", 1, new Dictionary<string, object?>
+                        {
+                            ["get_sent_offers"] = "1",
+                            ["get_descriptions"] = "1"
+                        });
+                    }
+                    catch (Exception ex3)
+                    {
+                        LoggingService.Instance.LogError($"❌ Подход 3 failed: {ex3.Message}", account.Username, ex3);
+                    }
+                }
 
                 LoggingService.Instance.LogInfo($"🌐 Получен ответ от Steam Web API", account.Username);
                 
@@ -129,6 +187,25 @@ namespace SteamTradeConfirmer.Services
                     
                     // Логируем полный ответ для отладки
                     LoggingService.Instance.LogInfo($"🔍 Полный ответ API: {allOffers.ToString()}", account.Username);
+                    
+                    // Дополнительная диагностика
+                    if (response["trade_offers_sent"] != null && response["trade_offers_sent"].Children.Count() > 0)
+                    {
+                        LoggingService.Instance.LogInfo($"🔍 Первый отправленный трейд:", account.Username);
+                        var firstSent = response["trade_offers_sent"].Children.First();
+                        LoggingService.Instance.LogInfo($"  - ID: {firstSent["tradeofferid"]?.AsString()}", account.Username);
+                        LoggingService.Instance.LogInfo($"  - Статус: {firstSent["trade_offer_state"]?.AsInteger()}", account.Username);
+                        LoggingService.Instance.LogInfo($"  - Создан: {firstSent["time_created"]?.AsLong()}", account.Username);
+                    }
+                    
+                    if (response["trade_offers_received"] != null && response["trade_offers_received"].Children.Count() > 0)
+                    {
+                        LoggingService.Instance.LogInfo($"🔍 Первый полученный трейд:", account.Username);
+                        var firstReceived = response["trade_offers_received"].Children.First();
+                        LoggingService.Instance.LogInfo($"  - ID: {firstReceived["tradeofferid"]?.AsString()}", account.Username);
+                        LoggingService.Instance.LogInfo($"  - Статус: {firstReceived["trade_offer_state"]?.AsInteger()}", account.Username);
+                        LoggingService.Instance.LogInfo($"  - Создан: {firstReceived["time_created"]?.AsLong()}", account.Username);
+                    }
                 }
                 else
                 {
